@@ -1,15 +1,14 @@
 package kafka
 
 import (
-	//"src/types"
-	//base "src/utils"
 	"testing"
 )
 
 func Test_connect(t *testing.T) {
 
-	//s := make(chan string)
 	connect()
+	//s := make(chan string)
+	//connect(s)
 	//block := types.Block{
 	//	BaseFeePerGas: 0x1cc97b,
 	//	BlockNumber:   0x2f,
@@ -25,8 +24,13 @@ func Test_connect(t *testing.T) {
 	//	Withdrawals:   nil,
 	//	Number:        0x2f,
 	//}
+	////
 	//
-	//s <- block.String()
+	//for i := 0; i < 10; i++ {
+	//	s <- block.String()
+	//}
+	//close(s)
+
 }
 
 //func Test_connect(t *testing.T) {

@@ -1,0 +1,12 @@
+
+
+Diving in to fully learn Go
+- Dabbled with GO in the past, but feel like it is time to commit
+
+- In connection with other work I was doing at the time I considered a good learning project would be a blockchain indexer and relay
+
+- Used other's work to get off the ground, and then began to look at structure
+
+- First looked at Kafka, but backtracked based on the overhead of learning two new items together.  Will revisit Kafka later
+
+- Went to mongoDB, as I'm familiar with using it in JS, Python, and Java, so adding GO to the mix felt like a good starting point.
