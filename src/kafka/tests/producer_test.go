@@ -1,12 +1,13 @@
-package kafka
+package tests
 
 import (
+	"src/internal"
 	"testing"
 )
 
 func Test_connect(t *testing.T) {
-
-	connect()
+	internal.Run()
+	//connect()
 	//s := make(chan string)
 	//connect(s)
 	//block := types.Block{
@@ -54,7 +55,7 @@ func Test_connect(t *testing.T) {
 //	tests := []struct {
 //		name string
 //		args args
-//		want *producerProvider
+//		want *ProducerProvider
 //	}{
 //		// TODO: Add test cases.
 //	}
@@ -69,7 +70,7 @@ func Test_connect(t *testing.T) {
 //
 //func Test_produceTestRecord(t *testing.T) {
 //	type args struct {
-//		producerProvider *producerProvider
+//		ProducerProvider *ProducerProvider
 //	}
 //	tests := []struct {
 //		name string
@@ -79,7 +80,7 @@ func Test_connect(t *testing.T) {
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			produceTestRecord(tt.args.producerProvider)
+//			produceTestRecord(tt.args.ProducerProvider)
 //		})
 //	}
 //}
@@ -89,7 +90,7 @@ func Test_connect(t *testing.T) {
 //		transactionIdGenerator int32
 //		producersLock          sync.Mutex
 //		producers              []sarama.AsyncProducer
-//		producerProvider       func() sarama.AsyncProducer
+//		ProducerProvider       func() sarama.AsyncProducer
 //	}
 //	tests := []struct {
 //		name         string
@@ -100,11 +101,11 @@ func Test_connect(t *testing.T) {
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			p := &producerProvider{
+//			p := &ProducerProvider{
 //				transactionIdGenerator: tt.fields.transactionIdGenerator,
 //				producersLock:          tt.fields.producersLock,
 //				producers:              tt.fields.producers,
-//				producerProvider:       tt.fields.producerProvider,
+//				ProducerProvider:       tt.fields.ProducerProvider,
 //			}
 //			if gotProducer := p.borrow(); !reflect.DeepEqual(gotProducer, tt.wantProducer) {
 //				t.Errorf("borrow() = %v, want %v", gotProducer, tt.wantProducer)
@@ -118,7 +119,7 @@ func Test_connect(t *testing.T) {
 //		transactionIdGenerator int32
 //		producersLock          sync.Mutex
 //		producers              []sarama.AsyncProducer
-//		producerProvider       func() sarama.AsyncProducer
+//		ProducerProvider       func() sarama.AsyncProducer
 //	}
 //	tests := []struct {
 //		name   string
@@ -128,11 +129,11 @@ func Test_connect(t *testing.T) {
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			p := &producerProvider{
+//			p := &ProducerProvider{
 //				transactionIdGenerator: tt.fields.transactionIdGenerator,
 //				producersLock:          tt.fields.producersLock,
 //				producers:              tt.fields.producers,
-//				producerProvider:       tt.fields.producerProvider,
+//				ProducerProvider:       tt.fields.ProducerProvider,
 //			}
 //			p.clear()
 //		})
@@ -144,7 +145,7 @@ func Test_connect(t *testing.T) {
 //		transactionIdGenerator int32
 //		producersLock          sync.Mutex
 //		producers              []sarama.AsyncProducer
-//		producerProvider       func() sarama.AsyncProducer
+//		ProducerProvider       func() sarama.AsyncProducer
 //	}
 //	type args struct {
 //		producer sarama.AsyncProducer
@@ -158,11 +159,11 @@ func Test_connect(t *testing.T) {
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			p := &producerProvider{
+//			p := &ProducerProvider{
 //				transactionIdGenerator: tt.fields.transactionIdGenerator,
 //				producersLock:          tt.fields.producersLock,
 //				producers:              tt.fields.producers,
-//				producerProvider:       tt.fields.producerProvider,
+//				ProducerProvider:       tt.fields.ProducerProvider,
 //			}
 //			p.release(tt.args.producer)
 //		})

@@ -25,8 +25,11 @@ type Transaction struct {
 	TransactionIndex     base.Txnum     `json:"transactionIndex"`
 	TransactionType      string         `json:"type"`
 	Value                base.Wei       `json:"value"`
-	// EXISTING_CODE
-	Message string `json:"-"`
+	V                    string         `json:"v"`
+	R                    string         `json:"r"`
+	S                    string         `json:"s"`
+	YParity              string         `json:"yParity"`
+	Message              string         `json:"-"`
 	// EXISTING_CODE
 }
 

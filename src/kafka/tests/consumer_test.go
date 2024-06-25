@@ -1,21 +1,26 @@
-package kafka
+package tests
 
 import (
+	"src/kafka"
 	"testing"
 )
 
 func Test_consumer(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		{"consume1"},
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			consumer()
-		})
-	}
+
+	kafka.NewConsumer([]string{"Block"})
+
+	kafka.NewConsumer([]string{"Receipt"})
+	//tests := []struct {
+	//	name string
+	//}{
+	//	{"consume1"},
+	//	// TODO: Add test cases.
+	//}
+	//for _, tt := range tests {
+	//	t.Run(tt.name, func(t *testing.T) {
+	//		NewConsumer()
+	//	})
+	//}
 }
 
 //func TestConsumer_Cleanup(t *testing.T) {

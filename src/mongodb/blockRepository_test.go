@@ -1,22 +1,34 @@
-package documents
+package mongodb
 
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/mongo"
 	"reflect"
-	"src/mongodb"
 	"src/mongodb/models"
 	"testing"
 )
 
+// const uri = "mongodb://localhost:27017"
+var settings = DatabaseSetting{
+	Url:        "mongodb://localhost:27017",
+	DbName:     "test",
+	Collection: "test",
+}
+
 func TestNewBlockRepository(t *testing.T) {
-	client, err := mongodb.GetClient()
+	client, err := GetClient(settings)
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			t.Errorf("mongodb.Disconnect() error = %v", err)
+		}
+	}(client, context.TODO())
 	if err != nil {
 		t.Errorf("Failed to connect to mongoDb")
 	}
 	type args struct {
 		client *mongo.Client
-		config *mongodb.DatabaseSetting
+		config *DatabaseSetting
 	}
 	tests := []struct {
 		name string
@@ -27,7 +39,7 @@ func TestNewBlockRepository(t *testing.T) {
 			name: "success",
 			args: args{
 				client: client,
-				config: &mongodb.DatabaseSetting{
+				config: &DatabaseSetting{
 					Url:        "",
 					DbName:     "test",
 					Collection: "test",
@@ -45,13 +57,19 @@ func TestNewBlockRepository(t *testing.T) {
 }
 
 func Test_blockRepository_Add(t *testing.T) {
-	client, err := mongodb.GetClient()
+	client, err := GetClient(settings)
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			t.Errorf("mongodb.Disconnect() error = %v", err)
+		}
+	}(client, context.TODO())
 	if err != nil {
 		t.Errorf("Failed to connect to mongoDb")
 	}
 	type fields struct {
 		client *mongo.Client
-		config *mongodb.DatabaseSetting
+		config *DatabaseSetting
 	}
 	type args struct {
 		appDoc models.Block
@@ -68,7 +86,7 @@ func Test_blockRepository_Add(t *testing.T) {
 			name: "success",
 			fields: fields{
 				client: client,
-				config: &mongodb.DatabaseSetting{
+				config: &DatabaseSetting{
 					Url:        "",
 					DbName:     "test",
 					Collection: "test",
@@ -116,13 +134,19 @@ func Test_blockRepository_Add(t *testing.T) {
 }
 
 func Test_blockRepository_GetById(t *testing.T) {
-	client, err := mongodb.GetClient()
+	client, err := GetClient(settings)
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			t.Errorf("mongodb.Disconnect() error = %v", err)
+		}
+	}(client, context.TODO())
 	if err != nil {
 		t.Errorf("Failed to connect to mongoDb")
 	}
 	type fields struct {
 		client *mongo.Client
-		config *mongodb.DatabaseSetting
+		config *DatabaseSetting
 	}
 	type args struct {
 		oId string
@@ -139,11 +163,7 @@ func Test_blockRepository_GetById(t *testing.T) {
 			name: "success",
 			fields: fields{
 				client: client,
-				config: &mongodb.DatabaseSetting{
-					Url:        "",
-					DbName:     "test",
-					Collection: "test",
-				},
+				config: &settings,
 			},
 			args: args{
 				oId: "123",
@@ -187,13 +207,19 @@ func Test_blockRepository_GetById(t *testing.T) {
 }
 
 func Test_blockRepository_List(t *testing.T) {
-	client, err := mongodb.GetClient()
+	client, err := GetClient(settings)
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			t.Errorf("mongodb.Disconnect() error = %v", err)
+		}
+	}(client, context.TODO())
 	if err != nil {
 		t.Errorf("Failed to connect to mongoDb")
 	}
 	type fields struct {
 		client *mongo.Client
-		config *mongodb.DatabaseSetting
+		config *DatabaseSetting
 	}
 	type args struct {
 		count int
@@ -210,11 +236,7 @@ func Test_blockRepository_List(t *testing.T) {
 			name: "success",
 			fields: fields{
 				client: client,
-				config: &mongodb.DatabaseSetting{
-					Url:        "",
-					DbName:     "test",
-					Collection: "test",
-				},
+				config: &settings,
 			},
 			args: args{
 				count: 1,
@@ -261,13 +283,19 @@ func Test_blockRepository_List(t *testing.T) {
 
 // 6675d042e56a685b510ebeab
 func Test_blockRepository_Delete(t *testing.T) {
-	client, err := mongodb.GetClient()
+	client, err := GetClient(settings)
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+			t.Errorf("mongodb.Disconnect() error = %v", err)
+		}
+	}(client, context.TODO())
 	if err != nil {
 		t.Errorf("Failed to connect to mongoDb")
 	}
 	type fields struct {
 		client *mongo.Client
-		config *mongodb.DatabaseSetting
+		config *DatabaseSetting
 	}
 	type args struct {
 		oId string
@@ -284,11 +312,7 @@ func Test_blockRepository_Delete(t *testing.T) {
 			name: "success",
 			fields: fields{
 				client: client,
-				config: &mongodb.DatabaseSetting{
-					Url:        "",
-					DbName:     "test",
-					Collection: "test",
-				},
+				config: &settings,
 			},
 			args: args{
 				oId: "123",
@@ -300,7 +324,7 @@ func Test_blockRepository_Delete(t *testing.T) {
 			name: "success",
 			fields: fields{
 				client: client,
-				config: &mongodb.DatabaseSetting{
+				config: &DatabaseSetting{
 					Url:        "",
 					DbName:     "test",
 					Collection: "test",

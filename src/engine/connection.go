@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	base "src/utils"
+	"src/utils"
 	"sync/atomic"
 )
 
 type Connection struct {
 	Chain                string
-	LatestBlockTimestamp base.Timestamp
+	LatestBlockTimestamp utils.Timestamp
 	LatestBlock          string
 }
 
@@ -38,7 +38,7 @@ type rpcPayload struct {
 	ID      int `json:"id"`
 }
 
-func rpcCall[T any](url string, headers map[string]string, method string, params Params) (*T, error) {
+func RpcCall[T any](url string, headers map[string]string, method string, params Params) (*T, error) {
 	payloadToSend := rpcPayload{
 		Jsonrpc: "2.0",
 		Method:  method,
@@ -64,7 +64,12 @@ func rpcCall[T any](url string, headers map[string]string, method string, params
 			} else if response.StatusCode != 200 {
 				return nil, fmt.Errorf("%s: %d", response.Status, response.StatusCode)
 			} else {
-				defer response.Body.Close()
+				defer func(Body io.ReadCloser) {
+					err := Body.Close()
+					if err != nil {
+						utils.Logger.Error(err)
+					}
+				}(response.Body)
 
 				if theBytes, err := io.ReadAll(response.Body); err != nil {
 					return nil, err

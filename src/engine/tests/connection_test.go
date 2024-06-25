@@ -1,6 +1,7 @@
-package engine
+package tests
 
 import (
+	"src/engine"
 	"src/types"
 	"testing"
 )
@@ -10,16 +11,16 @@ func Test_rpcCall(t *testing.T) {
 		url     string
 		headers map[string]string
 		method  string
-		params  Params
+		params  engine.Params
 	}
 
 	tt := args{
 		url:     "http://127.0.0.1:8545",
 		headers: map[string]string{},
 		method:  "eth_getBlockByNumber",
-		params:  Params{"latest", true},
+		params:  engine.Params{"latest", true},
 	}
-	call, err := rpcCall[types.Block](tt.url, tt.headers, tt.method, tt.params)
+	call, err := engine.RpcCall[types.Block](tt.url, tt.headers, tt.method, tt.params)
 	if err != nil {
 		println("ERROR")
 		println(err)

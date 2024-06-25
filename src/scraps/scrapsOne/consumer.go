@@ -1,4 +1,4 @@
-package kafka
+package scrapsOne
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"src/mongodb"
 	protobuf2 "src/protobuf"
-	"src/utils"
 	"sync"
 	"syscall"
 	"time"
@@ -23,31 +22,37 @@ var (
 	oldest   = true
 )
 
+var (
+	brokers   = []string{"localhost:9092"}
+	version   = "7.0.0"
+	topic     = "test"
+	producers = 2
+	verbose   = true
+
+	recordsNumber int64 = 100
+
+	//recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
+)
+
 // Consumer represents a Sarama consumer group consumer
 type Consumer struct {
-	ready               chan bool
-	terminateRun        bool
-	DatabaseCoordinator mongodb.DatabaseCoordinator
+	ready        chan bool
+	terminateRun bool
 }
 
 // need topics[topic] = handler
 func NewConsumer(topics []string) {
 
 	keepRunning := true
-	utils.Logger.Info("Starting a new Sarama consumer")
+	log.Println("Starting a new Sarama consumer")
 
-	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-
-	version, err := sarama.ParseKafkaVersion(version)
-
-	if err != nil {
-		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
+	if verbose {
+		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 	}
 
-	var settings = mongodb.DatabaseSetting{
-		Url:        "mongodb://localhost:27017",
-		DbName:     "blocks",
-		Collection: "blocks",
+	version, err := sarama.ParseKafkaVersion(version)
+	if err != nil {
+		log.Panicf("Error parsing Kafka version: %v", err)
 	}
 
 	/**
@@ -56,20 +61,26 @@ func NewConsumer(topics []string) {
 	 */
 	config := sarama.NewConfig()
 	config.Version = version
-	config.Metadata.Timeout = 20 * time.Second
-	config.ClientID = "Indexer"
 
-	//config.Consumer.Fetch.Default = 1024 * 1024 // 1MB
+	switch assignor {
+	case "sticky":
+		config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategySticky()}
+	case "roundrobin":
+		config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategyRoundRobin()}
+	case "range":
+		config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{sarama.NewBalanceStrategyRange()}
+	default:
+		log.Panicf("Unrecognized consumer group partition assignor: %s", assignor)
+	}
+
 	//config.Consumer.Group.ResetInvalidOffsets = true
-	//config.Consumer.Group.Rebalance.Timeout = 120 * time.Second
-	//config.Consumer.MaxWaitTime = 1 * time.Second
-	//config.Consumer.MaxProcessingTime = 10 * time.Second
-	//config.Consumer.Group.Rebalance.Timeout
-	//config.Consumer.Offsets.AutoCommit.Enable = false
-	config.Consumer.Return.Errors = true
-	//config.Consumer.Fetch.Max = 26214400
-	//config.Consumer.Group.ResetInvalidOffsets = true
-	config.Consumer.Offsets.Initial = sarama.OffsetNewest
+	config.Consumer.Group.Rebalance.Timeout = 120 * time.Second
+	config.Consumer.MaxWaitTime = 1 * time.Second
+
+	config.ClientID = "Indexer"
+	if oldest {
+		config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	}
 
 	/**
 	 * Setup a new Sarama consumer group
@@ -77,13 +88,11 @@ func NewConsumer(topics []string) {
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
-	DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings)
-	consumer.DatabaseCoordinator = DbCoordinator
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client, err := sarama.NewConsumerGroup(brokers, group, config)
 	if err != nil {
-		utils.Logger.Panicf("Error creating consumer group client: %v", err)
+		log.Panicf("Error creating consumer group client: %v", err)
 	}
 
 	consumptionIsPaused := false
@@ -99,7 +108,7 @@ func NewConsumer(topics []string) {
 				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
 					return
 				}
-				utils.Logger.Panicf("Error from consumer: %v", err)
+				log.Panicf("Error from consumer: %v", err)
 			}
 			// check if context was cancelled, signaling that the consumer should stop
 			if ctx.Err() != nil {
@@ -110,7 +119,7 @@ func NewConsumer(topics []string) {
 	}()
 
 	<-consumer.ready // Await till the consumer has been set up
-	utils.Logger.Info("Sarama consumer up and running!...")
+	log.Println("Sarama consumer up and running!...")
 
 	sigusr1 := make(chan os.Signal, 1)
 	signal.Notify(sigusr1, syscall.SIGUSR1)
@@ -121,11 +130,11 @@ func NewConsumer(topics []string) {
 	for keepRunning {
 		select {
 		case <-ctx.Done():
-			utils.Logger.Info("NewConsumer terminating: context cancelled")
+			log.Println("NewConsumer terminating: context cancelled")
 			keepRunning = false
 			consumer.terminateRun = true
 		case <-sigterm:
-			utils.Logger.Info("NewConsumer terminating: via signal")
+			log.Println("NewConsumer terminating: via signal")
 			keepRunning = false
 			consumer.terminateRun = true
 			cancel()
@@ -147,10 +156,10 @@ func NewConsumer(topics []string) {
 func toggleConsumptionFlow(client sarama.ConsumerGroup, isPaused *bool) {
 	if *isPaused {
 		client.ResumeAll()
-		utils.Logger.Info("Resuming consumption")
+		log.Println("Resuming consumption")
 	} else {
 		client.PauseAll()
-		utils.Logger.Info("Resuming consumption")
+		log.Println("Pausing consumption")
 	}
 
 	*isPaused = !*isPaused
@@ -159,7 +168,6 @@ func toggleConsumptionFlow(client sarama.ConsumerGroup, isPaused *bool) {
 // Setup is run at the beginning of a new session, before ConsumeClaim
 func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
 	// Mark the consumer as ready
-	println("consumer.go:146 SETUP") // todo remove dev item
 	close(consumer.ready)
 	return nil
 }
@@ -183,42 +191,53 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
+	var settings = mongodb.DatabaseSetting{
+		Url:        "mongodb://localhost:27017",
+		DbName:     "blocks",
+		Collection: "blocks",
+	}
+
+	DatabaseCoordinator, _ := mongodb.NewDatabaseCoordinator(settings)
+
 	for {
 		if consumer.terminateRun {
-			consumer.DatabaseCoordinator.Close()
+			DatabaseCoordinator.Close()
 			session.Context().Done()
 			return nil
 		}
 		select {
 		case message, ok := <-claim.Messages():
 			if !ok {
-				utils.Logger.Infof("message channel was closed")
+				log.Printf("message channel was closed")
 				return nil
 			}
 
 			if message.Topic == "Block" {
+				println("BLOCK")
 				var block protobuf2.Block
 				err := proto.Unmarshal(message.Value, &block)
 				if err != nil {
 					return err
 				}
-				consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(block)
-				utils.Logger.Infof("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
+				DatabaseCoordinator.AddBlock() <- DatabaseCoordinator.ConvertToBlock(block)
+				println("Consumed block", block.String())
+				log.Printf("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
 			}
 
 			if message.Topic == "Receipt" {
+				println("RECEIPT")
 				var receipt protobuf2.Receipt
 				err := proto.Unmarshal(message.Value, &receipt)
 				if err != nil {
 					return err
 				}
-				consumer.DatabaseCoordinator.AddReceipt() <- consumer.DatabaseCoordinator.ConvertToReceipt(receipt)
+				DatabaseCoordinator.AddReceipt() <- DatabaseCoordinator.ConvertToReceipt(receipt)
 
 				for _, logVal := range receipt.Logs {
-					consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
+					DatabaseCoordinator.AddLog() <- DatabaseCoordinator.ConvertToLog(logVal)
 				}
-				//println("Consumed receipt", receipt.String())
-				utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
+				println("Consumed receipt", receipt.String())
+				log.Printf("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
 
 			session.MarkMessage(message, "")
@@ -227,14 +246,17 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		// https://github.com/IBM/sarama/issues/1192
 		case <-session.Context().Done():
 			return nil
+		}
+
+		select {
 		case <-sigterm:
-			utils.Logger.Info("terminating: via signal: sigterm")
-			consumer.DatabaseCoordinator.Close()
+			log.Println("terminating: via signal: sigterm")
+			DatabaseCoordinator.Close()
 			session.Context().Done()
 			return nil
 		case <-sigusr1:
-			utils.Logger.Info("terminating: via signal: sigusr1")
-			consumer.DatabaseCoordinator.Close()
+			log.Println("terminating: via signal: sigusr1")
+			DatabaseCoordinator.Close()
 			session.Context().Done()
 			return nil
 		}

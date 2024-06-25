@@ -1,6 +1,7 @@
-package engine
+package tests
 
 import (
+	"src/engine"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ import (
 func TestSubscribeToBlocks(t *testing.T) {
 	// Connect the client.
 
-	createWsClient("ws://localhost:8546")
+	engine.GetBlocks("ws://localhost:8546")
 	t.Deadline()
 
 }

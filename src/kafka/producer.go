@@ -1,25 +1,25 @@
 package kafka
 
 import (
-	"context"
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/golang/protobuf/proto"
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
+	"src/mongodb/models"
+	"src/types"
+	"src/utils"
 	"sync"
 	"syscall"
-	"time"
 )
 
 var (
-	brokers   = "localhost:9092"
+	brokers   = []string{"localhost:9092"}
 	version   = "7.0.0"
 	topic     = "test"
-	producers = 1
+	producers = 2
 	verbose   = true
 
 	recordsNumber int64 = 100
@@ -27,128 +27,47 @@ var (
 	recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
 )
 
-func connect( /*source chan string*/ ) {
-	keepRunning := true
-	log.Println("Starting a new Sarama producer")
-
-	if verbose {
-		sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-	}
-
-	version, err := sarama.ParseKafkaVersion(version)
-	if err != nil {
-		log.Panicf("Error parsing Kafka version: %v", err)
-	}
-
-	producerProvider := newProducerProvider(strings.Split(brokers, ","), func() *sarama.Config {
-		config := sarama.NewConfig()
-		config.Version = version
-		config.Producer.Idempotent = true
-		config.Producer.Return.Errors = false
-		config.Producer.RequiredAcks = sarama.WaitForAll
-		config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
-		config.Producer.Transaction.Retry.Backoff = 10
-		config.Producer.Transaction.ID = "txn_producer"
-		config.Net.MaxOpenRequests = 1
-		return config
-	})
-
-	go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.New(os.Stderr, "metrics: ", log.LstdFlags))
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
-	for i := 0; i < producers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				produceTestRecord(producerProvider /*, source*/)
-			}
-		}()
-	}
-
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
-
-	for keepRunning {
-		<-sigterm
-		/*close(source)*/
-		log.Println("terminating: via signal")
-		keepRunning = false
-	}
-	cancel()
-	wg.Wait()
-}
-
-func produceTestRecord(producerProvider *producerProvider /*, source chan string*/) {
-	producer := producerProvider.borrow()
-	defer producerProvider.release(producer)
-
-	// Start kafka transaction
-	err := producer.BeginTxn()
-	if err != nil {
-		log.Printf("unable to start txn %s\n", err)
-		return
-	}
-
-	// Produce some records in transaction
-	var i int64
-	for i = 0; i < recordsNumber; i++ {
-		//sourceMessage := <-source
-		val := strconv.Itoa(int(i))
-		producer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: nil, Value: sarama.StringEncoder("test" + val)}
-	}
-
-	// commit transaction
-	err = producer.CommitTxn()
-	if err != nil {
-		log.Printf("Producer: unable to commit txn %s\n", err)
-		for {
-			if producer.TxnStatus()&sarama.ProducerTxnFlagFatalError != 0 {
-				// fatal error. need to recreate producer.
-				log.Printf("Producer: producer is in a fatal state, need to recreate it")
-				break
-			}
-			// If producer is in abortable state, try to abort current transaction.
-			if producer.TxnStatus()&sarama.ProducerTxnFlagAbortableError != 0 {
-				err = producer.AbortTxn()
-				if err != nil {
-					// If an error occured just retry it.
-					log.Printf("Producer: unable to abort transaction: %+v", err)
-					continue
-				}
-				break
-			}
-			// if not you can retry
-			err = producer.CommitTxn()
-			if err != nil {
-				log.Printf("Producer: unable to commit txn %s\n", err)
-				continue
-			}
-		}
-		return
-	}
-	recordsRate.Mark(recordsNumber)
-}
+//type Producer struct {
+//	producer  *kafka.Producer
+//	Connected bool
+//}
 
 // pool of producers that ensure transactional-id is unique.
-type producerProvider struct {
+type ProducerProvider struct {
 	transactionIdGenerator int32
 
 	producersLock sync.Mutex
 	producers     []sarama.AsyncProducer
 
-	producerProvider func() sarama.AsyncProducer
+	ProducerProvider func() sarama.AsyncProducer
+
+	Connected bool
 }
 
-func newProducerProvider(brokers []string, producerConfigurationProvider func() *sarama.Config) *producerProvider {
-	provider := &producerProvider{}
-	provider.producerProvider = func() sarama.AsyncProducer {
+func GenerateKafkaConfig() *sarama.Config {
+	version, err := sarama.ParseKafkaVersion(version)
+	if err != nil {
+		log.Panicf("Error parsing Kafka version: %v", err)
+	}
+
+	config := sarama.NewConfig()
+	config.Version = version
+	config.Producer.Idempotent = true
+	config.Producer.Return.Errors = false
+	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	config.Producer.Transaction.Retry.Backoff = 10
+	config.Producer.Transaction.ID = "txn_producer"
+	config.Net.MaxOpenRequests = 1
+	return config
+}
+
+func NewProducerProvider(brokers []string, producerConfigurationProvider func() *sarama.Config) *ProducerProvider {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	provider := &ProducerProvider{}
+	provider.ProducerProvider = func() sarama.AsyncProducer {
 		config := producerConfigurationProvider()
 		suffix := provider.transactionIdGenerator
 		// Append transactionIdGenerator to current config.Producer.Transaction.ID to ensure transaction-id uniqueness.
@@ -162,16 +81,132 @@ func newProducerProvider(brokers []string, producerConfigurationProvider func() 
 		}
 		return producer
 	}
+
+	provider.Connected = true
 	return provider
 }
 
-func (p *producerProvider) borrow() (producer sarama.AsyncProducer) {
+// ProduceBlock TODO: figure out how to properly generalize this function
+func (p *ProducerProvider) ProduceBlock(topic string, block types.Block) {
+	producer := p.borrow()
+	defer p.release(producer)
+
+	// Start kafka transaction
+	err := producer.BeginTxn()
+	if err != nil {
+		utils.Logger.Errorf("unable to start txn %s\n", err)
+		return
+	}
+
+	pbBlock := models.BlockProtobufFromGoType(block)
+	blockToSend, err := proto.Marshal(&pbBlock)
+
+	msg := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.ByteEncoder(blockToSend),
+	}
+	producer.Input() <- msg
+
+	if err != nil {
+		return
+	}
+
+	// commit transaction
+	err = producer.CommitTxn()
+	if err != nil {
+		utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
+		for {
+			if producer.TxnStatus()&sarama.ProducerTxnFlagFatalError != 0 {
+				// fatal error. need to recreate producer.
+				utils.Logger.Errorf("Producer: producer is in a fatal state, need to recreate it")
+				break
+			}
+			// If producer is in abortable state, try to abort current transaction.
+			if producer.TxnStatus()&sarama.ProducerTxnFlagAbortableError != 0 {
+				err = producer.AbortTxn()
+				if err != nil {
+					// If an error occured just retry it.
+					utils.Logger.Errorf("Producer: unable to abort transaction: %+v", err)
+					continue
+				}
+				break
+			}
+			// if not you can retry
+			err = producer.CommitTxn()
+			if err != nil {
+				utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
+				continue
+			}
+		}
+		return
+	}
+}
+
+func (p *ProducerProvider) ProduceReceipt(topic string, receipt types.Receipt) {
+	producer := p.borrow()
+	defer p.release(producer)
+
+	// Start kafka transaction
+	err := producer.BeginTxn()
+	if err != nil {
+		utils.Logger.Errorf("unable to start txn %s\n", err)
+		return
+	}
+	//if !k.Connected {
+	//	provider = k.producerProvider()
+	//}
+
+	pbBlock := models.ReceiptProtobufFromGoType(receipt)
+	blockToSend, err := proto.Marshal(&pbBlock)
+
+	msg := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.ByteEncoder(blockToSend),
+	}
+	producer.Input() <- msg
+
+	if err != nil {
+		return
+	}
+
+	// commit transaction
+	err = producer.CommitTxn()
+	if err != nil {
+		utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
+		for {
+			if producer.TxnStatus()&sarama.ProducerTxnFlagFatalError != 0 {
+				// fatal error. need to recreate producer.
+				utils.Logger.Errorf("Producer: producer is in a fatal state, need to recreate it")
+				break
+			}
+			// If producer is in abortable state, try to abort current transaction.
+			if producer.TxnStatus()&sarama.ProducerTxnFlagAbortableError != 0 {
+				err = producer.AbortTxn()
+				if err != nil {
+					// If an error occured just retry it.
+					utils.Logger.Errorf("Producer: unable to abort transaction: %+v", err)
+					continue
+				}
+				break
+			}
+			// if not you can retry
+			err = producer.CommitTxn()
+			if err != nil {
+				utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
+				continue
+			}
+		}
+		return
+	}
+}
+
+func (p *ProducerProvider) borrow() (producer sarama.AsyncProducer) {
 	p.producersLock.Lock()
 	defer p.producersLock.Unlock()
 
 	if len(p.producers) == 0 {
 		for {
-			producer = p.producerProvider()
+			producer = p.ProducerProvider()
 			if producer != nil {
 				return
 			}
@@ -184,7 +219,7 @@ func (p *producerProvider) borrow() (producer sarama.AsyncProducer) {
 	return
 }
 
-func (p *producerProvider) release(producer sarama.AsyncProducer) {
+func (p *ProducerProvider) release(producer sarama.AsyncProducer) {
 	p.producersLock.Lock()
 	defer p.producersLock.Unlock()
 
@@ -197,7 +232,7 @@ func (p *producerProvider) release(producer sarama.AsyncProducer) {
 	p.producers = append(p.producers, producer)
 }
 
-func (p *producerProvider) clear() {
+func (p *ProducerProvider) clear() {
 	p.producersLock.Lock()
 	defer p.producersLock.Unlock()
 

@@ -19,9 +19,9 @@ type Receipt struct {
 	To                base.Address `json:"to,omitempty"`
 	TransactionHash   base.Hash    `json:"transactionHash"`
 	TransactionIndex  base.Txnum   `json:"transactionIndex"`
-	// EXISTING_CODE
-	// EXISTING_CODE
 }
+
+type Receipts []*Receipt
 
 func (s Receipt) String() string {
 	bytes, _ := json.Marshal(s)

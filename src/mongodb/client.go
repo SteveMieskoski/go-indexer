@@ -2,10 +2,10 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"src/utils"
 )
 
 const uri = "mongodb://localhost:27017"
@@ -39,14 +39,14 @@ func ConnectMongoDb() (*mongo.Client, error) {
 	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {
 		panic(err)
 	}
-	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+	utils.Logger.Info("Pinged your deployment. You successfully connected to MongoDB!")
 
 	return client, nil
 }
 
-func GetClient() (*mongo.Client, error) {
+func GetClient(setting DatabaseSetting) (*mongo.Client, error) {
 	//serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(uri) /*.SetServerAPIOptions(serverAPI)*/
+	opts := options.Client().ApplyURI(setting.Url) /*.SetServerAPIOptions(serverAPI)*/
 	// Create a new client and connect to the server
 	client, err := mongo.Connect(context.TODO(), opts)
 	if err != nil {
@@ -55,10 +55,10 @@ func GetClient() (*mongo.Client, error) {
 
 	// Send a ping to confirm a successful connection
 	var result bson.M
-	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {
+	if err := client.Database(setting.DbName).RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {
 		panic(err)
 	}
-	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+	utils.Logger.Info("Pinged your deployment. You successfully connected to MongoDB!")
 
 	return client, nil
 }

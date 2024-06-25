@@ -1,0 +1,3 @@
+generate protobuf go file
+
+protoc -I=src/kafka/protobuf --go_out=./ src/kafka/protobuf/block.proto

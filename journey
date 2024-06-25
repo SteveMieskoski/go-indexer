@@ -10,3 +10,12 @@ Diving in to fully learn Go
 - First looked at Kafka, but backtracked based on the overhead of learning two new items together.  Will revisit Kafka later
 
 - Went to mongoDB, as I'm familiar with using it in JS, Python, and Java, so adding GO to the mix felt like a good starting point.
+
+- This proved to be accurate and in short order the indexer was retrieving raw chain data from my isolated local ethereum env
+and saving blocks, transactions, and transaction receipts in mongo
+
+- The next stage is to transition the ingestion stage to use kafka, and attaching a processor to split the raw chain data
+into a query friendly data model
+
+- the implicit type declarations are one feature about Golang that I'm not sure if I like.  it does make coding easier, but
+it also feels a little javascriptish in sometimes needing to locate the declaration to check what type is being returned.

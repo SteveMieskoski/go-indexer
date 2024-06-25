@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package protobuf;
+option go_package="src/kafka/protobuf";
+
+
+message Receipt {
+  string BlockHash = 1;
+  string BlockNumber = 2;
+  string ContractAddress = 3;
+  string CumulativeGasUsed = 4;
+  string EffectiveGasPrice = 5;
+  string From = 6;
+  string GasUsed = 7;
+  bool IsError = 8;
+
+  message Log {
+    string Address = 1;
+    string BlockHash = 2;
+    string BlockNumber = 3;
+    string Data = 4;
+    string LogIndex = 5;
+    uint64 Timestamp = 6;
+    repeated string Topics = 7;
+    string TransactionHash = 8;
+    string TransactionIndex = 9;
+  }
+
+  repeated Log Logs = 9;
+  string Status = 10;
+  string To = 11;
+  string TransactionHash = 12;
+  string TransactionIndex = 13;
+
+}
