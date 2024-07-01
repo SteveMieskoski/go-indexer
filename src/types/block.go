@@ -15,6 +15,7 @@ type Block struct {
 	Miner         base.Address   `json:"miner"`
 	ParentHash    base.Hash      `json:"parentHash"`
 	Timestamp     base.Timestamp `json:"timestamp"`
+	LogsBloom     string         `json:"logsBloom"`
 	Transactions  []Transaction  `json:"transactions"`
 	Uncles        []base.Hash    `json:"uncles,omitempty"`
 	Withdrawals   []Withdrawal   `json:"withdrawals,omitempty"`

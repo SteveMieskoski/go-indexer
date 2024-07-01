@@ -15,6 +15,7 @@ type Block struct {
 	GasLimit      string        `bson:"gasLimit" json:"gasLimit"`
 	GasUsed       string        `bson:"gasUsed" json:"gasUsed"`
 	Hash          string        `bson:"hash" json:"hash"`
+	LogsBloom     string        `bson:"logsBloom" json:"logsBloom"`
 	Miner         string        `bson:"miner" json:"miner"`
 	ParentHash    string        `bson:"parentHash" json:"parentHash"`
 	Timestamp     uint64        `bson:"timestamp" json:"timestamp"`
@@ -45,6 +46,7 @@ func BlockFromGoType(block types.Block) Block {
 		GasLimit:      strconv.FormatUint(uint64(block.GasLimit), 10),
 		GasUsed:       strconv.FormatUint(uint64(block.GasUsed), 10),
 		Hash:          block.Hash.String(),
+		LogsBloom:     block.LogsBloom,
 		Miner:         block.Miner.String(),
 		ParentHash:    block.ParentHash.String(),
 		Timestamp:     uint64(block.Timestamp.Int64()),
@@ -71,6 +73,7 @@ func BlockProtobufFromGoType(block types.Block) protobuf.Block {
 		GasLimit:      blockString.GasLimit,
 		GasUsed:       blockString.GasUsed,
 		Hash:          blockString.Hash,
+		LogsBloom:     blockString.LogsBloom,
 		Miner:         blockString.Miner,
 		ParentHash:    blockString.ParentHash,
 		Timestamp:     blockString.Timestamp,
@@ -97,6 +100,7 @@ func BlockFromProtobufType(block protobuf.Block) *Block {
 		GasLimit:      block.GasLimit,
 		GasUsed:       block.GasUsed,
 		Hash:          block.Hash,
+		LogsBloom:     block.LogsBloom,
 		Miner:         block.Miner,
 		ParentHash:    block.ParentHash,
 		Timestamp:     block.Timestamp,

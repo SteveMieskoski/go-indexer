@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package protobuf;
-option go_package="src/kafka/protobuf";
+option go_package="src/protobuf";
 
 message Block {
   string BaseFeePerGas = 1;
@@ -10,9 +10,10 @@ message Block {
   string GasLimit = 4;
   string GasUsed = 5;
   string Hash = 6;
-  string Miner = 7;
-  string ParentHash = 8;
-  uint64 Timestamp = 9;
+  string LogsBloom = 7;
+  string Miner = 8;
+  string ParentHash = 9;
+  uint64 Timestamp = 10;
 
   message Transaction {
     string BlockHash = 1;
@@ -40,54 +41,9 @@ message Block {
     string YParity = 23;
   }
 
-  repeated Transaction Transactions = 10;
+  repeated Transaction Transactions = 11;
 
-  repeated string Uncles = 11;
-  repeated string Withdrawals = 12;
-  string Number = 13;
+  repeated string Uncles = 12;
+  repeated string Withdrawals = 13;
+  string Number = 14;
 }
-
-
-/*
-	BlockHash            string   `bson:"blockHash" json:"blockHash"`
-	BlockNumber          string   `bson:"blockNumber" json:"blockNumber"`
-	From                 string   `bson:"from" json:"from"`
-	Gas                  string   `bson:"gas" json:"gas"`
-	GasPrice             string   `bson:"gasPrice" json:"gasPrice"`
-	GasUsed              string   `bson:"gasUsed" json:"gasUsed"`
-	HasToken             bool     `bson:"hasToken" json:"hasToken"`
-	Hash                 string   `bson:"hash" json:"hash"`
-	Input                string   `bson:"input" json:"input"`
-	IsError              bool     `bson:"isError" json:"isError"`
-	MaxFeePerGas         string   `bson:"maxFeePerGas" json:"maxFeePerGas"`
-	MaxPriorityFeePerGas string   `bson:"maxPriorityFeePerGas" json:"maxPriorityFeePerGas"`
-	Nonce                uint64   `bson:"nonce" json:"nonce"`
-	Receipt              *Receipt `bson:"receipt" json:"receipt"`
-	Timestamp            uint64   `bson:"timestamp" json:"timestamp"`
-	To                   string   `bson:"to" json:"to"`
-	TransactionIndex     string   `bson:"transactionIndex" json:"transactionIndex"`
-	TransactionType      string   `bson:"type" json:"type"`
-	Value                string   `bson:"value" json:"value"`
-	Message              string   `bson:"message" json:"message"`
-	V                    string   `bson:"v" json:"v"`
-	R                    string   `bson:"r" json:"r"`
-	S                    string   `bson:"s" json:"s"`
-	YParity              string   `bson:"yParity" json:"yParity"`
-
-
-	Id            string        `bson:"_id" json:"_id"`
-	BaseFeePerGas string        `bson:"baseFeePerGas" json:"baseFeePerGas"`
-	BlockNumber   string        `bson:"blockNumber" json:"blockNumber"`
-	Difficulty    string        `bson:"difficulty" json:"difficulty"`
-	GasLimit      string        `bson:"gasLimit" json:"gasLimit"`
-	GasUsed       string        `bson:"gasUsed" json:"gasUsed"`
-	Hash          string        `bson:"hash" json:"hash"`
-	Miner         string        `bson:"miner" json:"miner"`
-	ParentHash    string        `bson:"parentHash" json:"parentHash"`
-	Timestamp     uint64        `bson:"timestamp" json:"timestamp"`
-	Transactions  []Transaction `bson:"transactions" json:"transactions"`
-	Uncles        []string      `bson:"uncles,omitempty" json:"uncles,omitempty"`
-	Withdrawals   []string      `bson:"withdrawals,omitempty" json:"withdrawals,omitempty"`
-	Number        string        `bson:"number" json:"number"`
-
-	*/
