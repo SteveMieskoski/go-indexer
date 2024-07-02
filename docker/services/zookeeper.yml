@@ -1,7 +1,5 @@
 
 
-
-name: zookeeper
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.0
