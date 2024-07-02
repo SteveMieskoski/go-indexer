@@ -3,6 +3,6 @@
 
 cd ./docker || exit
 
-docker compose down -v
+docker compose down -d
 
 docker compose up -d
