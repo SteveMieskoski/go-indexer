@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/joho/godotenv"
 	"src/internal"
 	"src/kafka"
 	"src/utils"
@@ -14,11 +15,15 @@ var (
 func main() {
 	flag.Parse()
 	utils.InitializeLogger()
+	err := godotenv.Load("../.env")
+	if err != nil {
+		utils.Logger.Fatalf("Error loading .env file")
+	}
 
 	println(*mode) // todo remove dev item
 	if *mode == "consume" {
 		utils.Logger.Info("starting as consumer")
-		kafka.NewConsumer([]string{"Block", "Receipt"})
+		kafka.NewMongoDbConsumer([]string{"Block", "Receipt"})
 	}
 
 	if *mode == "produce" {

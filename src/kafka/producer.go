@@ -87,7 +87,7 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 }
 
 // ProduceBlock TODO: figure out how to properly generalize this function
-func (p *ProducerProvider) ProduceBlock(topic string, block types.Block) {
+func (p *ProducerProvider) Produce(topic string, block interface{}) {
 	producer := p.borrow()
 	defer p.release(producer)
 
@@ -98,18 +98,62 @@ func (p *ProducerProvider) ProduceBlock(topic string, block types.Block) {
 		return
 	}
 
-	pbBlock := models.BlockProtobufFromGoType(block)
-	blockToSend, err := proto.Marshal(&pbBlock)
+	//val := reflect.ValueOf(block)
+	//typ := val.Type()
+	//modelType := reflect.TypeOf((*types.DataModel)(nil)).Elem()
 
-	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.ByteEncoder(blockToSend),
-	}
-	producer.Input() <- msg
+	switch data := block.(type) {
 
-	if err != nil {
-		return
+	case types.Block:
+		//checkedBlock, ok := block.(types.Block)
+		//if !ok {
+		//	fmt.Println("Not a checking account")
+		//	return
+		//}
+
+		pbBlock := types.Block{}.ProtobufFromGoType(data)
+		blockToSend, err := proto.Marshal(&pbBlock)
+
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(blockToSend),
+		}
+
+		producer.Input() <- msg
+
+		if err != nil {
+			return
+		}
+
+	case types.Receipt:
+
+		pbBlock := types.Receipt{}.ProtobufFromGoType(data)
+		blockToSend, err := proto.Marshal(&pbBlock)
+
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(blockToSend),
+		}
+		producer.Input() <- msg
+
+		if err != nil {
+			return
+		}
+
 	}
+
+	//blockToSend, err := proto.Marshal(&pbHolder)
+	//
+	//msg := &sarama.ProducerMessage{
+	//	Topic: topic,
+	//	Value: sarama.ByteEncoder(blockToSend),
+	//}
+	//
+	//producer.Input() <- msg
+	//
+	//if err != nil {
+	//	return
+	//}
 
 	// commit transaction
 	err = producer.CommitTxn()

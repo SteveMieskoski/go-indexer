@@ -1,0 +1,9 @@
+
+services:
+  postgres-db:
+    image: postgres:12.19-alpine3.20
+    hostname: postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgrespassword

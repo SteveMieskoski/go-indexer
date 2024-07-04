@@ -1,0 +1,8 @@
+
+
+services:
+  mongo-db:
+    image: mongo:7.0
+    hostname: mongo-db
+    ports:
+      - "27017:27017"

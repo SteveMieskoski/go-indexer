@@ -4,14 +4,15 @@ import (
 	"context"
 	"src/mongodb/models"
 	protobuf2 "src/protobuf"
+	"src/types"
 )
 
 type DatabaseCoordinator interface {
-	AddBlock() chan<- *models.Block
+	AddBlock() chan<- *types.MongoBlock
 	AddReceipt() chan<- *models.Receipt
 	AddLog() chan<- *models.Log
 	Close()
-	ConvertToBlock(block protobuf2.Block) *models.Block
+	ConvertToBlock(block protobuf2.Block) *types.MongoBlock
 	ConvertToReceipt(receipt protobuf2.Receipt) *models.Receipt
 	ConvertToLog(logVal *protobuf2.Receipt_Log) *models.Log
 }
@@ -21,7 +22,7 @@ type databaseCoordinator struct {
 	BlockRepository   BlockRepository
 	ReceiptRepository ReceiptRepository
 	LogRepository     LogRepository
-	blockChan         chan *models.Block
+	blockChan         chan *types.MongoBlock
 	receiptChan       chan *models.Receipt
 	logChan           chan *models.Log
 }
@@ -71,7 +72,7 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 		BlockRepository:   BlockRepository,
 		ReceiptRepository: ReceiptRepository,
 		LogRepository:     LogRepository,
-		blockChan:         make(chan *models.Block),
+		blockChan:         make(chan *types.MongoBlock),
 		receiptChan:       make(chan *models.Receipt),
 		logChan:           make(chan *models.Log),
 	}
@@ -91,7 +92,7 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 	return dbc, nil
 }
 
-func (db *databaseCoordinator) AddBlock() chan<- *models.Block {
+func (db *databaseCoordinator) AddBlock() chan<- *types.MongoBlock {
 	return db.blockChan
 }
 
@@ -137,8 +138,8 @@ func (db *databaseCoordinator) monitorLogChannel() {
 	}
 }
 
-func (db *databaseCoordinator) ConvertToBlock(block protobuf2.Block) *models.Block {
-	return models.BlockFromProtobufType(block)
+func (db *databaseCoordinator) ConvertToBlock(block protobuf2.Block) *types.MongoBlock {
+	return types.Block{}.MongoFromProtobufType(block)
 }
 
 func (db *databaseCoordinator) ConvertToReceipt(receipt protobuf2.Receipt) *models.Receipt {

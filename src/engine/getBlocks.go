@@ -71,7 +71,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 	return subch
 }
 
-func (b BlockRetriever) GetPastBlocks(blockToGet chan int) chan types.Block {
+func (b BlockRetriever) GetPastBlocks(blockToGet int) types.Block {
 	// Connect the client.
 	url := os.Getenv("WS_RPC_URL")
 	client, _ := rpc.Dial(url)
@@ -79,38 +79,28 @@ func (b BlockRetriever) GetPastBlocks(blockToGet chan int) chan types.Block {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	subch := make(chan types.Block)
+	//subch := make(chan types.Block)
 
 	println("check 3")
-	go func() {
-
-		for block := range blockToGet {
-			// Ensure that subch receives the latest block.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			println("check 4")
-			// The connection is established now.
-			// Update the channel with the current block.
-			var lastBlock types.Block
-			blockNumberToRetreive := strconv.FormatInt(int64(block), 16)
-			println(blockNumberToRetreive)
-			println(blockNumberToRetreive)
-			err := client.CallContext(ctx, &lastBlock, "eth_getBlockByNumber", blockNumberToRetreive, true)
-			if err != nil {
-				utils.Logger.Error("can't get latest block:", err)
-				return
-			}
-			subch <- lastBlock
-			sig := <-sigs
-			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				utils.Logger.Info("exiting: GetPastBlocks")
-				close(subch)
-				return
-			}
-			//utils.Logger.Error("connection lost: ", <-sub.Err())
-		}
-
-	}()
-
-	return subch
+	// Ensure that subch receives the latest block.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	println("check 4")
+	// The connection is established now.
+	// Update the channel with the current block.
+	var lastBlock types.Block
+	blockNumberToRetreive := strconv.FormatInt(int64(blockToGet), 16)
+	println(blockNumberToRetreive)
+	err := client.CallContext(ctx, &lastBlock, "eth_getBlockByNumber", "0x"+blockNumberToRetreive, true)
+	if err != nil {
+		utils.Logger.Error("can't get latest block:", err)
+	}
+	//subch <- lastBlock
+	//sig := <-sigs
+	//if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+	//	utils.Logger.Info("exiting: GetPastBlocks")
+	//	//close(subch)
+	//}
+	utils.Logger.Info("return prior block")
+	return lastBlock
 }

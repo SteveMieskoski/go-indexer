@@ -7,16 +7,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
-	"src/mongodb/models"
+	"src/types"
 	"src/utils"
 )
 
 //var collectionName = "blocks"
 
 type BlockRepository interface {
-	Add(appDoc models.Block, ctx context.Context) (string, error)
-	List(count int, ctx context.Context) ([]*models.Block, error)
-	GetById(oId string, ctx context.Context) (*models.Block, error)
+	Add(appDoc types.MongoBlock, ctx context.Context) (string, error)
+	List(count int, ctx context.Context) ([]*types.MongoBlock, error)
+	GetById(oId string, ctx context.Context) (*types.MongoBlock, error)
 	Delete(oId string, ctx context.Context) (int64, error)
 }
 
@@ -29,7 +29,7 @@ func NewBlockRepository(client *mongo.Client, config *DatabaseSetting) BlockRepo
 	return &blockRepository{client: client, config: config}
 }
 
-func (app *blockRepository) Add(appDoc models.Block, ctx context.Context) (string, error) {
+func (app *blockRepository) Add(appDoc types.MongoBlock, ctx context.Context) (string, error) {
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
@@ -61,7 +61,7 @@ func (app *blockRepository) Add(appDoc models.Block, ctx context.Context) (strin
 
 }
 
-func (app *blockRepository) List(count int, ctx context.Context) ([]*models.Block, error) {
+func (app *blockRepository) List(count int, ctx context.Context) ([]*types.MongoBlock, error) {
 
 	findOptions := options.Find()
 	findOptions.SetLimit(int64(count))
@@ -75,12 +75,12 @@ func (app *blockRepository) List(count int, ctx context.Context) ([]*models.Bloc
 		return nil, err
 	}
 
-	var appDocs []*models.Block
+	var appDocs []*types.MongoBlock
 	// Finding multiple documents returns a cursor
 	// Iterating through the cursor allows us to decode documents one at a time
 	for cursor.Next(ctx) {
 		// create a value into which the single document can be decoded
-		var elem models.Block
+		var elem types.MongoBlock
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)
 			return nil, err
@@ -95,13 +95,13 @@ func (app *blockRepository) List(count int, ctx context.Context) ([]*models.Bloc
 	return appDocs, nil
 }
 
-func (app *blockRepository) GetById(oId string, ctx context.Context) (*models.Block, error) {
+func (app *blockRepository) GetById(oId string, ctx context.Context) (*types.MongoBlock, error) {
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	filter := bson.D{primitive.E{Key: "_id", Value: oId}}
 
-	var appDoc *models.Block
+	var appDoc *types.MongoBlock
 
 	collection.FindOne(ctx, filter).Decode(&appDoc)
 

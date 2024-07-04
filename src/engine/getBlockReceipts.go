@@ -41,7 +41,7 @@ func GetBlockReceipts(url string, blockHash string) chan types.Receipts {
 
 		sig := <-sigs
 		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-			println("exiting")
+			println("exiting: GetBlockReceipts")
 			return
 		}
 	}()

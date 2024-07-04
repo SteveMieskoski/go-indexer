@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"src/mongodb"
+	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/utils"
 	"sync"
@@ -17,21 +18,123 @@ import (
 )
 
 // Sarama configuration options
-var (
-	group    = "one"
-	assignor = "roundrobin"
-	oldest   = true
-)
+//var (
+//	group    = "one"
+//	assignor = "roundrobin"
+//	oldest   = true
+//)
 
 // Consumer represents a Sarama consumer group consumer
 type Consumer struct {
 	ready               chan bool
 	terminateRun        bool
 	DatabaseCoordinator mongodb.DatabaseCoordinator
+	PostgresCoordinator postgres.PostgresDB
+	PrimaryCoordinator  string
 }
 
 // need topics[topic] = handler
-func NewConsumer(topics []string) {
+func NewPostgresConsumer(topics []string) {
+
+	keepRunning := true
+	utils.Logger.Info("Starting a new Sarama consumer")
+
+	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+
+	version, err := sarama.ParseKafkaVersion(version)
+
+	if err != nil {
+		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
+	}
+
+	/**
+	 * Construct a new Sarama configuration.
+	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
+	 */
+	config := sarama.NewConfig()
+	config.Version = version
+	config.Metadata.Timeout = 20 * time.Second
+	config.ClientID = "Indexer"
+	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+
+	postgresConsumer := postgres.NewClient()
+
+	/**
+	 * Setup a new Sarama consumer group
+	 */
+	consumer := Consumer{
+		ready: make(chan bool),
+	}
+
+	consumer.PostgresCoordinator = *postgresConsumer
+	consumer.PrimaryCoordinator = "POSTGRES"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	client, err := sarama.NewConsumerGroup(brokers, "postgres", config)
+	if err != nil {
+		utils.Logger.Panicf("Error creating consumer group client: %v", err)
+	}
+
+	consumptionIsPaused := false
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			// `Consume` should be called inside an infinite loop, when a
+			// server-side rebalance happens, the consumer session will need to be
+			// recreated to get the new claims
+			if err := client.Consume(ctx, topics, &consumer); err != nil {
+				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
+					return
+				}
+				utils.Logger.Panicf("Error from consumer: %v", err)
+			}
+			// check if context was cancelled, signaling that the consumer should stop
+			if ctx.Err() != nil {
+				return
+			}
+			consumer.ready = make(chan bool)
+		}
+	}()
+
+	<-consumer.ready // Await till the consumer has been set up
+	utils.Logger.Info("Sarama consumer up and running!...")
+
+	sigusr1 := make(chan os.Signal, 1)
+	signal.Notify(sigusr1, syscall.SIGUSR1)
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+
+	for keepRunning {
+		select {
+		case <-ctx.Done():
+			utils.Logger.Info("NewConsumer terminating: context cancelled")
+			keepRunning = false
+			consumer.terminateRun = true
+		case <-sigterm:
+			utils.Logger.Info("NewConsumer terminating: via signal")
+			keepRunning = false
+			consumer.terminateRun = true
+			cancel()
+			err := client.Close()
+			if err != nil {
+				return
+			}
+		case <-sigusr1:
+			toggleConsumptionFlow(client, &consumptionIsPaused)
+		}
+	}
+	cancel()
+	wg.Wait()
+	if err = client.Close(); err != nil {
+		log.Panicf("Error closing client: %v", err)
+	}
+}
+
+func NewMongoDbConsumer(topics []string) {
 
 	keepRunning := true
 	utils.Logger.Info("Starting a new Sarama consumer")
@@ -58,18 +161,8 @@ func NewConsumer(topics []string) {
 	config.Version = version
 	config.Metadata.Timeout = 20 * time.Second
 	config.ClientID = "Indexer"
-
-	//config.Consumer.Fetch.Default = 1024 * 1024 // 1MB
-	//config.Consumer.Group.ResetInvalidOffsets = true
-	//config.Consumer.Group.Rebalance.Timeout = 120 * time.Second
-	//config.Consumer.MaxWaitTime = 1 * time.Second
-	//config.Consumer.MaxProcessingTime = 10 * time.Second
-	//config.Consumer.Group.Rebalance.Timeout
-	//config.Consumer.Offsets.AutoCommit.Enable = false
 	config.Consumer.Return.Errors = true
-	//config.Consumer.Fetch.Max = 26214400
-	//config.Consumer.Group.ResetInvalidOffsets = true
-	config.Consumer.Offsets.Initial = sarama.OffsetNewest
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	/**
 	 * Setup a new Sarama consumer group
@@ -79,9 +172,10 @@ func NewConsumer(topics []string) {
 	}
 	DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings)
 	consumer.DatabaseCoordinator = DbCoordinator
+	consumer.PrimaryCoordinator = "MONGO"
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client, err := sarama.NewConsumerGroup(brokers, group, config)
+	client, err := sarama.NewConsumerGroup(brokers, "mongo", config)
 	if err != nil {
 		utils.Logger.Panicf("Error creating consumer group client: %v", err)
 	}
@@ -185,7 +279,13 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 
 	for {
 		if consumer.terminateRun {
-			consumer.DatabaseCoordinator.Close()
+			switch consumer.PrimaryCoordinator {
+			case "MONGO":
+				consumer.DatabaseCoordinator.Close()
+			case "POSTGRES":
+
+			}
+
 			session.Context().Done()
 			return nil
 		}
