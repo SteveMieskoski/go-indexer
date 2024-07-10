@@ -7,14 +7,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"src/mongodb/models"
+	"src/types"
 	"src/utils"
 )
 
 type LogRepository interface {
-	Add(appDoc models.Log, ctx context.Context) (string, error)
-	List(count int, ctx context.Context) ([]*models.Log, error)
-	GetById(oId string, ctx context.Context) (*models.Log, error)
+	Add(appDoc types.MongoLog, ctx context.Context) (string, error)
+	List(count int, ctx context.Context) ([]*types.MongoLog, error)
+	GetById(oId string, ctx context.Context) (*types.MongoLog, error)
 	Delete(oId string, ctx context.Context) (int64, error)
 }
 
@@ -45,7 +45,7 @@ func (app *logRepository) AddIndex() (string, error) {
 	return name, nil
 }
 
-func (app *logRepository) Add(appDoc models.Log, ctx context.Context) (string, error) {
+func (app *logRepository) Add(appDoc types.MongoLog, ctx context.Context) (string, error) {
 	//if !app.indicesExist {
 	//	_, err := app.AddIndex()
 	//	if err != nil {
@@ -72,7 +72,7 @@ func (app *logRepository) Add(appDoc models.Log, ctx context.Context) (string, e
 
 }
 
-func (app *logRepository) List(count int, ctx context.Context) ([]*models.Log, error) {
+func (app *logRepository) List(count int, ctx context.Context) ([]*types.MongoLog, error) {
 
 	findOptions := options.Find()
 	findOptions.SetLimit(int64(count))
@@ -84,12 +84,12 @@ func (app *logRepository) List(count int, ctx context.Context) ([]*models.Log, e
 		return nil, err
 	}
 
-	var appDocs []*models.Log
+	var appDocs []*types.MongoLog
 	// Finding multiple documents returns a cursor
 	// Iterating through the cursor allows us to decode documents one at a time
 	for cursor.Next(ctx) {
 		// create a value into which the single document can be decoded
-		var elem models.Log
+		var elem types.MongoLog
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)
 			return nil, err
@@ -104,13 +104,13 @@ func (app *logRepository) List(count int, ctx context.Context) ([]*models.Log, e
 	return appDocs, nil
 }
 
-func (app *logRepository) GetById(oId string, ctx context.Context) (*models.Log, error) {
+func (app *logRepository) GetById(oId string, ctx context.Context) (*types.MongoLog, error) {
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	filter := bson.D{primitive.E{Key: "_id", Value: oId}}
 
-	var appDoc *models.Log
+	var appDoc *types.MongoLog
 
 	collection.FindOne(ctx, filter).Decode(&appDoc)
 

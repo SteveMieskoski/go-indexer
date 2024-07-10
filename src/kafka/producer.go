@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"src/mongodb/models"
 	"src/types"
 	"src/utils"
 	"sync"
@@ -200,7 +199,7 @@ func (p *ProducerProvider) ProduceReceipt(topic string, receipt types.Receipt) {
 	//	provider = k.producerProvider()
 	//}
 
-	pbBlock := models.ReceiptProtobufFromGoType(receipt)
+	pbBlock := types.Receipt{}.ProtobufFromGoType(receipt)
 	blockToSend, err := proto.Marshal(&pbBlock)
 
 	msg := &sarama.ProducerMessage{

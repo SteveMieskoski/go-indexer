@@ -72,9 +72,9 @@ func (s Log) ProtobufFromGoType(lg Log) protobufLocal.Receipt_Log {
 	}
 }
 
-func (s Log) MongoFromProtobufType(lg protobufLocal.Receipt_Log) MongoLog {
+func (s Log) MongoFromProtobufType(lg protobufLocal.Receipt_Log) *MongoLog {
 
-	return MongoLog{
+	return &MongoLog{
 		Address:          lg.Address,
 		BlockHash:        lg.BlockHash,
 		BlockNumber:      lg.BlockNumber,

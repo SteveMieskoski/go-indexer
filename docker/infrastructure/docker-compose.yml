@@ -1,0 +1,31 @@
+
+version: '3'
+services:
+  zookeeper:
+    extends:
+      service: zookeeper
+      file: ../services/zookeeper.yml
+
+  broker:
+    depends_on:
+      - zookeeper
+    extends:
+      service: broker
+      file: ../services/broker.yml
+
+  postgres-db:
+    extends:
+      service: postgres-db
+      file: ../services/postgres.yml
+
+  mongo-db:
+    extends:
+      service: mongo-db
+      file: ../services/mongodb.yml
+
+  redis-db:
+    extends:
+      service: redis-db
+      file: ../services/redis.yml
+
+

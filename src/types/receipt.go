@@ -100,14 +100,15 @@ func (s Receipt) ProtobufFromGoType(receipt Receipt) protobufLocal.Receipt {
 	}
 }
 
-func (s Receipt) MongoFromProtobufType(receipt protobufLocal.Receipt) MongoReceipt {
+func (s Receipt) MongoFromProtobufType(receipt protobufLocal.Receipt) *MongoReceipt {
 
 	var convertedLogs []MongoLog
 	for _, log := range receipt.Logs {
-		convertedLogs = append(convertedLogs, Log{}.MongoFromProtobufType(*log))
+		result := Log{}.MongoFromProtobufType(*log)
+		convertedLogs = append(convertedLogs, *result)
 	}
 
-	return MongoReceipt{
+	return &MongoReceipt{
 		Id:                receipt.TransactionHash,
 		BlockHash:         receipt.BlockHash,
 		BlockNumber:       receipt.BlockNumber,
