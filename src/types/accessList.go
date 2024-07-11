@@ -21,7 +21,7 @@ func (s AccessList) String() string {
 	return string(bytes)
 }
 
-func (s AccessList) FromGoType(lg AccessList) MongoAccessList {
+func (s AccessList) MongoFromGoType(lg AccessList) MongoAccessList {
 
 	var convertedTopics []string
 	for _, t := range lg.StorageKeys {
@@ -35,7 +35,7 @@ func (s AccessList) FromGoType(lg AccessList) MongoAccessList {
 }
 
 func (s AccessList) ProtobufFromGoType(lg AccessList) protobufLocal.Block_Transaction_AccessList {
-	logString := s.FromGoType(lg)
+	logString := s.MongoFromGoType(lg)
 
 	return protobufLocal.Block_Transaction_AccessList{
 		Address:     logString.Address,

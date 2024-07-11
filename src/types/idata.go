@@ -10,7 +10,7 @@ package types
 //
 //type Data interface {
 //	FromProtobuf(dataType string) error
-//	FromGoType(dataType string) error
+//	MongoFromGoType(dataType string) error
 //}
 //
 //func NewStore(t DataType) Data {

@@ -9,9 +9,9 @@ import (
 	"src/types"
 )
 
-func GetBlobSideCars(slot string) types.SidecarsResponse {
+func GetBeaconHeader() *types.BeaconHeadersResponse {
 
-	res, err := http.Get("http://127.0.0.1:3500/eth/v1/beacon/blob_sidecars/" + slot)
+	res, err := http.Get("http://127.0.0.1:3500/eth/v1/beacon/headers")
 	if err != nil {
 		fmt.Printf("client: error making http request: %s\n", err)
 		os.Exit(1)
@@ -31,10 +31,10 @@ func GetBlobSideCars(slot string) types.SidecarsResponse {
 		}
 	}(res.Body)
 
-	var arr *types.SidecarsResponse
-	if err := json.Unmarshal([]byte(resBody), &arr); err != nil {
+	var bHeaders *types.BeaconHeadersResponse
+	if err := json.Unmarshal([]byte(resBody), &bHeaders); err != nil {
 		panic(err)
 	}
 
-	return *arr
+	return bHeaders
 }

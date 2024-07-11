@@ -32,9 +32,9 @@ func (s Blob) String() string {
 	return string(bytes)
 }
 
-func (s Blob) FromGoType(blob Blob) MongoBlob {
+func (s Blob) MongoFromGoType(blob Blob) MongoBlob {
 
-	sbh := SignedBeaconBlockHeader{}.FromGoType(*blob.SignedBlockHeader)
+	sbh := SignedBeaconBlockHeader{}.MongoFromGoType(*blob.SignedBlockHeader)
 
 	return MongoBlob{
 		Index:                       blob.Index,

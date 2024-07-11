@@ -20,10 +20,10 @@ func (s SignedBeaconBlockHeader) String() string {
 	return string(bytes)
 }
 
-func (s SignedBeaconBlockHeader) FromGoType(blob SignedBeaconBlockHeader) MongoSignedBlockHeader {
+func (s SignedBeaconBlockHeader) MongoFromGoType(blob SignedBeaconBlockHeader) MongoSignedBlockHeader {
 
 	return MongoSignedBlockHeader{
-		Message:   BeaconBlockHeader{}.FromGoType(blob.Message),
+		Message:   BeaconBlockHeader{}.MongoFromGoType(blob.Message),
 		Signature: blob.Signature,
 	}
 }

@@ -23,7 +23,7 @@ func main() {
 	println(*mode) // todo remove dev item
 	if *mode == "consume" {
 		utils.Logger.Info("starting as consumer")
-		kafka.NewMongoDbConsumer([]string{"Block", "Receipt"})
+		kafka.NewMongoDbConsumer([]string{"Block", "Receipt", "Blob"})
 	}
 
 	if *mode == "produce" {

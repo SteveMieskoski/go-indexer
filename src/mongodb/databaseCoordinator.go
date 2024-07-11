@@ -11,10 +11,12 @@ type DatabaseCoordinator interface {
 	AddBlock() chan<- *types.MongoBlock
 	AddReceipt() chan<- *types.MongoReceipt
 	AddLog() chan<- *types.MongoLog
+	AddBlob() chan<- *types.MongoBlob
 	Close()
 	ConvertToBlock(block protobuf2.Block) *types.MongoBlock
 	ConvertToReceipt(receipt protobuf2.Receipt) *types.MongoReceipt
 	ConvertToLog(logVal *protobuf2.Receipt_Log) *types.MongoLog
+	ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob
 }
 
 type databaseCoordinator struct {
@@ -22,11 +24,13 @@ type databaseCoordinator struct {
 	BlockRepository   BlockRepository
 	ReceiptRepository ReceiptRepository
 	LogRepository     LogRepository
+	BlobRepository    BlobRepository
 	AddressRepository postgres.AddressRepository
 	blockChan         chan *types.MongoBlock
 	receiptChan       chan *types.MongoReceipt
 	logChan           chan *types.MongoLog
 	addressChan       chan *types.Address
+	blobChan          chan *types.MongoBlob
 }
 
 func NewDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, error) {
@@ -53,6 +57,12 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 		Collection: "logs",
 	}
 
+	blobDbSettings := &DatabaseSetting{
+		Url:        settings.Url,
+		DbName:     settings.DbName,
+		Collection: "blobs",
+	}
+
 	pg := postgres.NewClient()
 
 	client, err := GetClient(settings)
@@ -67,20 +77,27 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 	if err != nil {
 		return nil, err
 	}
+	client4, err := GetClient(settings)
+	if err != nil {
+		return nil, err
+	}
 
 	AddressRepository := postgres.NewAddressRepository(pg)
 	BlockRepository := NewBlockRepository(client, blockDbSettings)
 	ReceiptRepository := NewReceiptRepository(client2, receiptDbSettings)
 	LogRepository := NewLogRepository(client3, logDbSettings)
+	BlobRepository := NewBlobRepository(client4, blobDbSettings)
 
 	dbc := &databaseCoordinator{
 		BlockRepository:   BlockRepository,
 		ReceiptRepository: ReceiptRepository,
 		LogRepository:     LogRepository,
+		BlobRepository:    BlobRepository,
 		AddressRepository: AddressRepository,
 		blockChan:         make(chan *types.MongoBlock),
 		receiptChan:       make(chan *types.MongoReceipt),
 		logChan:           make(chan *types.MongoLog),
+		blobChan:          make(chan *types.MongoBlob),
 		addressChan:       make(chan *types.Address),
 	}
 
@@ -98,6 +115,10 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 
 	go func() {
 		dbc.monitorAddressChannel()
+	}()
+
+	go func() {
+		dbc.monitorBlobChannel()
 	}()
 
 	return dbc, nil
@@ -119,11 +140,16 @@ func (db *databaseCoordinator) AddAddress() chan<- *types.Address {
 	return db.addressChan
 }
 
+func (db *databaseCoordinator) AddBlob() chan<- *types.MongoBlob {
+	return db.blobChan
+}
+
 func (db *databaseCoordinator) Close() {
 	close(db.blockChan)
 	close(db.receiptChan)
 	close(db.logChan)
 	close(db.addressChan)
+	close(db.blobChan)
 }
 
 func (db *databaseCoordinator) monitorBlockChannel() {
@@ -160,6 +186,15 @@ func (db *databaseCoordinator) monitorLogChannel() {
 	}
 }
 
+func (db *databaseCoordinator) monitorBlobChannel() {
+	for blob := range db.blobChan {
+		_, err := db.BlobRepository.Add(*blob, context.Background())
+		if err != nil {
+			return
+		}
+	}
+}
+
 func (db *databaseCoordinator) monitorAddressChannel() {
 	for address := range db.addressChan {
 		println(address)
@@ -181,4 +216,8 @@ func (db *databaseCoordinator) ConvertToReceipt(receipt protobuf2.Receipt) *type
 
 func (db *databaseCoordinator) ConvertToLog(logVal *protobuf2.Receipt_Log) *types.MongoLog {
 	return types.Log{}.MongoFromProtobufType(*logVal)
+}
+
+func (db *databaseCoordinator) ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob {
+	return types.Blob{}.MongoFromProtobufType(*blob)
 }

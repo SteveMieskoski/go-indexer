@@ -47,11 +47,11 @@ func (s Receipt) String() string {
 	return string(bytes)
 }
 
-func (s Receipt) FromGoType(receipt Receipt) MongoReceipt {
+func (s Receipt) MongoFromGoType(receipt Receipt) MongoReceipt {
 
 	var convertedLogs []MongoLog
 	for _, log := range receipt.Logs {
-		convertedLogs = append(convertedLogs, log.FromGoType(log))
+		convertedLogs = append(convertedLogs, log.MongoFromGoType(log))
 	}
 
 	return MongoReceipt{
@@ -74,7 +74,7 @@ func (s Receipt) FromGoType(receipt Receipt) MongoReceipt {
 
 func (s Receipt) ProtobufFromGoType(receipt Receipt) protobufLocal.Receipt {
 
-	receiptString := s.FromGoType(receipt)
+	receiptString := s.MongoFromGoType(receipt)
 
 	var convertedLogs []*protobufLocal.Receipt_Log
 

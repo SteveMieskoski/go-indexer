@@ -5,28 +5,45 @@ import (
 	protobufLocal "src/protobuf"
 )
 
-type BeaconHeadersResponse struct {
-	Data                []*HeaderResponseData `json:"data"`
-	ExecutionOptimistic bool                  `json:"executionOptimistic"`
-	Finalized           bool                  `json:"finalized"`
-}
+//type SignedBeaconBlockHeaderContainer struct {
+//	Header    *SignedBeaconBlockHeader `json:"header"`
+//	Root      string                   `json:"root"`
+//	Canonical bool                     `json:"canonical"`
+//}
+//
+//type GetBlockHeadersResponse struct {
+//	Data                []*SignedBeaconBlockHeaderContainer `json:"data"`
+//	ExecutionOptimistic bool                                `json:"execution_optimistic"`
+//	Finalized           bool                                `json:"finalized"`
+//}
 
-type MongoBeaconHeadersResponse struct {
-	Data                []*MongoHeaderResponseData `json:"data"`
-	ExecutionOptimistic bool                       `json:"executionOptimistic"`
+type BeaconHeadersResponse struct {
+	Data                []*HeaderResponseContainer `json:"data"`
+	ExecutionOptimistic bool                       `json:"execution_optimistic"`
 	Finalized           bool                       `json:"finalized"`
 }
 
-type HeaderResponseData struct {
-	Header    *SignedBeaconBlockHeader `json:"data"`
+type MongoBeaconHeadersResponse struct {
+	Data                []*MongoHeaderResponseContainer `json:"data"`
+	ExecutionOptimistic bool                            `json:"execution_optimistic"`
+	Finalized           bool                            `json:"finalized"`
+}
+
+type HeaderResponseContainer struct {
+	Header    *SignedBeaconBlockHeader `json:"header"`
 	Root      string                   `json:"root"`
 	Canonical bool                     `json:"canonical"`
 }
 
-type MongoHeaderResponseData struct {
-	Header    *MongoSignedBlockHeader `json:"data"`
+type MongoHeaderResponseContainer struct {
+	Header    *MongoSignedBlockHeader `json:"header"`
 	Root      string                  `json:"root"`
 	Canonical bool                    `json:"canonical"`
+}
+
+func (s HeaderResponseContainer) String() string {
+	bytes, _ := json.Marshal(s)
+	return string(bytes)
 }
 
 func (s BeaconHeadersResponse) String() string {
@@ -34,12 +51,14 @@ func (s BeaconHeadersResponse) String() string {
 	return string(bytes)
 }
 
-func (s BeaconHeadersResponse) FromGoType(blob BeaconHeadersResponse) MongoBeaconHeadersResponse {
+func (s BeaconHeadersResponse) MongoFromGoType(blob BeaconHeadersResponse) MongoBeaconHeadersResponse {
 
-	var data []*MongoHeaderResponseData
+	var data []*MongoHeaderResponseContainer
 	for _, block := range blob.Data {
-		headerData := SignedBeaconBlockHeader{}.FromGoType(*block.Header)
-		dat := MongoHeaderResponseData{
+		//headerResponse := MongoHeaderResponseContainer{}
+		//json.Unmarshal(*block.Header, &headerResponse)
+		headerData := SignedBeaconBlockHeader{}.MongoFromGoType(*block.Header)
+		dat := MongoHeaderResponseContainer{
 			Header:    &headerData,
 			Root:      block.Root,
 			Canonical: block.Canonical,
@@ -76,10 +95,10 @@ func (s BeaconHeadersResponse) ProtobufFromGoType(blob BeaconHeadersResponse) pr
 
 func (s BeaconHeadersResponse) MongoFromProtobufType(blob protobufLocal.BeaconHeaderResponse) *MongoBeaconHeadersResponse {
 
-	var data []*MongoHeaderResponseData
+	var data []*MongoHeaderResponseContainer
 	for _, block := range blob.Data {
 		headerData := SignedBeaconBlockHeader{}.MongoFromProtobufType(*block.Header)
-		dat := MongoHeaderResponseData{
+		dat := MongoHeaderResponseContainer{
 			Header:    headerData,
 			Root:      block.Root,
 			Canonical: block.Canonical,

@@ -321,6 +321,17 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
 
+			if message.Topic == "Blob" {
+				var blob protobuf2.Blob
+				err := proto.Unmarshal(message.Value, &blob)
+				if err != nil {
+					return err
+				}
+				consumer.DatabaseCoordinator.AddBlob() <- consumer.DatabaseCoordinator.ConvertToBlob(&blob)
+
+				utils.Logger.Infof("Message claimed: Blob = %s, timestamp = %v, topic = %s", blob.GetKzgCommitment(), message.Timestamp, message.Topic)
+			}
+
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:

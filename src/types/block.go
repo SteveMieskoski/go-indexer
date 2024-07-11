@@ -8,7 +8,7 @@ import (
 )
 
 type DataModel[goType any, protoType any, modelType any] interface {
-	FromGoType(data goType) modelType
+	MongoFromGoType(data goType) modelType
 	ProtobufFromGoType(data goType) protoType
 	MongoFromProtobufType(data protoType) *modelType
 	ProtobufFromMongoType(data modelType) *protoType
@@ -64,12 +64,12 @@ func (s Block) String() string {
 	return string(bytes)
 }
 
-func (s Block) FromGoType(block Block) MongoBlock {
+func (s Block) MongoFromGoType(block Block) MongoBlock {
 
 	var convertedArray []MongoTransaction
 
 	for _, v := range block.Transactions {
-		convertedArray = append(convertedArray, v.FromGoType(v))
+		convertedArray = append(convertedArray, v.MongoFromGoType(v))
 	}
 
 	return MongoBlock{
@@ -97,7 +97,7 @@ func (s Block) FromGoType(block Block) MongoBlock {
 }
 
 func (s Block) ProtobufFromGoType(block Block) protobufLocal.Block {
-	blockString := s.FromGoType(block)
+	blockString := s.MongoFromGoType(block)
 
 	var convertedArray []*protobufLocal.Block_Transaction
 

@@ -86,7 +86,7 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 }
 
 // ProduceBlock TODO: figure out how to properly generalize this function
-func (p *ProducerProvider) Produce(topic string, block interface{}) {
+func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 	producer := p.borrow()
 	defer p.release(producer)
 
@@ -94,12 +94,8 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) {
 	err := producer.BeginTxn()
 	if err != nil {
 		utils.Logger.Errorf("unable to start txn %s\n", err)
-		return
+		return false
 	}
-
-	//val := reflect.ValueOf(block)
-	//typ := val.Type()
-	//modelType := reflect.TypeOf((*types.DataModel)(nil)).Elem()
 
 	switch data := block.(type) {
 
@@ -121,9 +117,9 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) {
 		producer.Input() <- msg
 
 		if err != nil {
-			return
+			return false
 		}
-
+		break
 	case types.Receipt:
 
 		pbBlock := types.Receipt{}.ProtobufFromGoType(data)
@@ -136,80 +132,24 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) {
 		producer.Input() <- msg
 
 		if err != nil {
-			return
+			return false
 		}
+		break
+	case types.Blob:
 
-	}
+		pbBlock := types.Blob{}.ProtobufFromGoType(data)
+		blockToSend, err := proto.Marshal(&pbBlock)
 
-	//blockToSend, err := proto.Marshal(&pbHolder)
-	//
-	//msg := &sarama.ProducerMessage{
-	//	Topic: topic,
-	//	Value: sarama.ByteEncoder(blockToSend),
-	//}
-	//
-	//producer.Input() <- msg
-	//
-	//if err != nil {
-	//	return
-	//}
-
-	// commit transaction
-	err = producer.CommitTxn()
-	if err != nil {
-		utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
-		for {
-			if producer.TxnStatus()&sarama.ProducerTxnFlagFatalError != 0 {
-				// fatal error. need to recreate producer.
-				utils.Logger.Errorf("Producer: producer is in a fatal state, need to recreate it")
-				break
-			}
-			// If producer is in abortable state, try to abort current transaction.
-			if producer.TxnStatus()&sarama.ProducerTxnFlagAbortableError != 0 {
-				err = producer.AbortTxn()
-				if err != nil {
-					// If an error occured just retry it.
-					utils.Logger.Errorf("Producer: unable to abort transaction: %+v", err)
-					continue
-				}
-				break
-			}
-			// if not you can retry
-			err = producer.CommitTxn()
-			if err != nil {
-				utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
-				continue
-			}
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(blockToSend),
 		}
-		return
-	}
-}
+		producer.Input() <- msg
 
-func (p *ProducerProvider) ProduceReceipt(topic string, receipt types.Receipt) {
-	producer := p.borrow()
-	defer p.release(producer)
-
-	// Start kafka transaction
-	err := producer.BeginTxn()
-	if err != nil {
-		utils.Logger.Errorf("unable to start txn %s\n", err)
-		return
-	}
-	//if !k.Connected {
-	//	provider = k.producerProvider()
-	//}
-
-	pbBlock := types.Receipt{}.ProtobufFromGoType(receipt)
-	blockToSend, err := proto.Marshal(&pbBlock)
-
-	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.ByteEncoder(blockToSend),
-	}
-	producer.Input() <- msg
-
-	if err != nil {
-		return
+		if err != nil {
+			return false
+		}
+		break
 	}
 
 	// commit transaction
@@ -239,8 +179,9 @@ func (p *ProducerProvider) ProduceReceipt(topic string, receipt types.Receipt) {
 				continue
 			}
 		}
-		return
+		return false
 	}
+	return true
 }
 
 func (p *ProducerProvider) borrow() (producer sarama.AsyncProducer) {

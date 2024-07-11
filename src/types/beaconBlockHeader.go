@@ -26,7 +26,7 @@ func (s BeaconBlockHeader) String() string {
 	return string(bytes)
 }
 
-func (s BeaconBlockHeader) FromGoType(blob BeaconBlockHeader) MongoBeaconBlockHeader {
+func (s BeaconBlockHeader) MongoFromGoType(blob BeaconBlockHeader) MongoBeaconBlockHeader {
 
 	return MongoBeaconBlockHeader{
 		Slot:          blob.Slot,

@@ -27,6 +27,7 @@ func NewBlockRetriever(redisClient redisdb.RedisClient) *BlockRetriever {
 }
 
 func (b BlockRetriever) GetBlocks() chan types.Block {
+
 	// Connect the client.
 	url := os.Getenv("WS_RPC_URL")
 	//WS_RPC_URL
@@ -38,6 +39,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 	subch := make(chan types.Block)
 
 	go func() {
+
 		// Ensure that subch receives the latest block.
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -62,7 +64,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 			sub.Unsubscribe()
 			utils.Logger.Info("exiting: GetBlocks")
-			close(subch)
+			defer close(subch)
 			return
 		}
 		utils.Logger.Error("connection lost: ", <-sub.Err())
@@ -78,14 +80,12 @@ func (b BlockRetriever) GetPastBlocks(blockToGet int) types.Block {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer close(sigs)
 
-	//subch := make(chan types.Block)
-
-	println("check 3")
 	// Ensure that subch receives the latest block.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	println("check 4")
+
 	// The connection is established now.
 	// Update the channel with the current block.
 	var lastBlock types.Block
@@ -95,12 +95,7 @@ func (b BlockRetriever) GetPastBlocks(blockToGet int) types.Block {
 	if err != nil {
 		utils.Logger.Error("can't get latest block:", err)
 	}
-	//subch <- lastBlock
-	//sig := <-sigs
-	//if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-	//	utils.Logger.Info("exiting: GetPastBlocks")
-	//	//close(subch)
-	//}
-	utils.Logger.Info("return prior block")
+
+	utils.Logger.Infof("retrieved prior block %d", blockToGet)
 	return lastBlock
 }

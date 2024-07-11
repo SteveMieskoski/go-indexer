@@ -36,7 +36,7 @@ func (s Log) String() string {
 	return string(bytes)
 }
 
-func (s Log) FromGoType(lg Log) MongoLog {
+func (s Log) MongoFromGoType(lg Log) MongoLog {
 
 	var convertedTopics []string
 	for _, t := range lg.Topics {
@@ -57,7 +57,7 @@ func (s Log) FromGoType(lg Log) MongoLog {
 }
 
 func (s Log) ProtobufFromGoType(lg Log) protobufLocal.Receipt_Log {
-	logString := s.FromGoType(lg)
+	logString := s.MongoFromGoType(lg)
 
 	return protobufLocal.Receipt_Log{
 		Address:          logString.Address,

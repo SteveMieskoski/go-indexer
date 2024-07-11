@@ -67,11 +67,11 @@ func (s Transaction) String() string {
 	return string(bytes)
 }
 
-func (s Transaction) FromGoType(tx Transaction) MongoTransaction {
+func (s Transaction) MongoFromGoType(tx Transaction) MongoTransaction {
 
 	var convertedAccessList []MongoAccessList
 	for _, t := range tx.AccessList {
-		convertedAccessList = append(convertedAccessList, AccessList{}.FromGoType(t))
+		convertedAccessList = append(convertedAccessList, AccessList{}.MongoFromGoType(t))
 	}
 
 	return MongoTransaction{
@@ -103,7 +103,7 @@ func (s Transaction) FromGoType(tx Transaction) MongoTransaction {
 }
 
 func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Block_Transaction {
-	txString := s.FromGoType(tx)
+	txString := s.MongoFromGoType(tx)
 
 	var convertedAccessList []*protobufLocal.Block_Transaction_AccessList
 
