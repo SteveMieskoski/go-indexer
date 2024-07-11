@@ -45,7 +45,7 @@ services:
   # The account used in go-ethereum is set as the suggested fee recipient for transactions
   # proposed via the validators attached to the beacon node.
   beacon-chain:
-    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v4.1.1"
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v5.0.4"
     command:
       - --datadir=/consensus/beacondata
       # No peers to sync with in this testnet, so setting to 0
@@ -53,6 +53,8 @@ services:
       - --genesis-state=/consensus/genesis.ssz
       - --bootstrap-node=
       - --interop-eth1data-votes
+      - --save-full-execution-payloads
+      - --blob-save-fsync
       # The chain configuration file used for setting up Prysm
       - --chain-config-file=/consensus/config.yml
       # We specify the chain id used by our execution client
@@ -67,6 +69,7 @@ services:
       - --minimum-peers-per-subnet=0
       - --enable-debug-rpc-endpoints
       - --force-clear-db
+
     depends_on:
       create-beacon-chain-genesis:
         condition: service_completed_successfully
@@ -122,7 +125,7 @@ services:
   # We run a validator client with 64, deterministically-generated keys that match
   # The validator keys present in the beacon chain genesis state generated a few steps above.
   validator:
-    image: "gcr.io/prysmaticlabs/prysm/validator:v4.1.1"
+    image: "gcr.io/prysmaticlabs/prysm/validator:v5.0.4"
     command:
       - --beacon-rpc-provider=beacon-chain:4000
       - --datadir=/consensus/validatordata

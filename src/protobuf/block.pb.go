@@ -25,20 +25,25 @@ type Block struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BaseFeePerGas string               `protobuf:"bytes,1,opt,name=BaseFeePerGas,proto3" json:"BaseFeePerGas,omitempty"`
-	BlockNumber   string               `protobuf:"bytes,2,opt,name=BlockNumber,proto3" json:"BlockNumber,omitempty"`
-	Difficulty    string               `protobuf:"bytes,3,opt,name=Difficulty,proto3" json:"Difficulty,omitempty"`
-	GasLimit      string               `protobuf:"bytes,4,opt,name=GasLimit,proto3" json:"GasLimit,omitempty"`
-	GasUsed       string               `protobuf:"bytes,5,opt,name=GasUsed,proto3" json:"GasUsed,omitempty"`
-	Hash          string               `protobuf:"bytes,6,opt,name=Hash,proto3" json:"Hash,omitempty"`
-	LogsBloom     string               `protobuf:"bytes,7,opt,name=LogsBloom,proto3" json:"LogsBloom,omitempty"`
-	Miner         string               `protobuf:"bytes,8,opt,name=Miner,proto3" json:"Miner,omitempty"`
-	ParentHash    string               `protobuf:"bytes,9,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
-	Timestamp     uint64               `protobuf:"varint,10,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
-	Transactions  []*Block_Transaction `protobuf:"bytes,11,rep,name=Transactions,proto3" json:"Transactions,omitempty"`
-	Uncles        []string             `protobuf:"bytes,12,rep,name=Uncles,proto3" json:"Uncles,omitempty"`
-	Withdrawals   []string             `protobuf:"bytes,13,rep,name=Withdrawals,proto3" json:"Withdrawals,omitempty"`
-	Number        string               `protobuf:"bytes,14,opt,name=Number,proto3" json:"Number,omitempty"`
+	BaseFeePerGas         string               `protobuf:"bytes,1,opt,name=BaseFeePerGas,proto3" json:"BaseFeePerGas,omitempty"`
+	BlockNumber           string               `protobuf:"bytes,2,opt,name=BlockNumber,proto3" json:"BlockNumber,omitempty"`
+	Difficulty            string               `protobuf:"bytes,3,opt,name=Difficulty,proto3" json:"Difficulty,omitempty"`
+	GasLimit              string               `protobuf:"bytes,4,opt,name=GasLimit,proto3" json:"GasLimit,omitempty"`
+	GasUsed               string               `protobuf:"bytes,5,opt,name=GasUsed,proto3" json:"GasUsed,omitempty"`
+	Hash                  string               `protobuf:"bytes,6,opt,name=Hash,proto3" json:"Hash,omitempty"`
+	LogsBloom             string               `protobuf:"bytes,7,opt,name=LogsBloom,proto3" json:"LogsBloom,omitempty"`
+	Miner                 string               `protobuf:"bytes,8,opt,name=Miner,proto3" json:"Miner,omitempty"`
+	ParentHash            string               `protobuf:"bytes,9,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
+	Timestamp             uint64               `protobuf:"varint,10,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
+	Transactions          []*Block_Transaction `protobuf:"bytes,11,rep,name=Transactions,proto3" json:"Transactions,omitempty"`
+	Uncles                []string             `protobuf:"bytes,12,rep,name=Uncles,proto3" json:"Uncles,omitempty"`
+	Withdrawals           []string             `protobuf:"bytes,13,rep,name=Withdrawals,proto3" json:"Withdrawals,omitempty"`
+	Number                string               `protobuf:"bytes,14,opt,name=Number,proto3" json:"Number,omitempty"`
+	BlobGasUsed           string               `protobuf:"bytes,15,opt,name=BlobGasUsed,proto3" json:"BlobGasUsed,omitempty"`
+	ExcessBlobGas         string               `protobuf:"bytes,16,opt,name=ExcessBlobGas,proto3" json:"ExcessBlobGas,omitempty"`
+	ParentBeaconBlockRoot string               `protobuf:"bytes,17,opt,name=ParentBeaconBlockRoot,proto3" json:"ParentBeaconBlockRoot,omitempty"`
+	ReceiptsRoot          string               `protobuf:"bytes,18,opt,name=ReceiptsRoot,proto3" json:"ReceiptsRoot,omitempty"`
+	StateRoot             string               `protobuf:"bytes,19,opt,name=StateRoot,proto3" json:"StateRoot,omitempty"`
 }
 
 func (x *Block) Reset() {
@@ -171,34 +176,70 @@ func (x *Block) GetNumber() string {
 	return ""
 }
 
+func (x *Block) GetBlobGasUsed() string {
+	if x != nil {
+		return x.BlobGasUsed
+	}
+	return ""
+}
+
+func (x *Block) GetExcessBlobGas() string {
+	if x != nil {
+		return x.ExcessBlobGas
+	}
+	return ""
+}
+
+func (x *Block) GetParentBeaconBlockRoot() string {
+	if x != nil {
+		return x.ParentBeaconBlockRoot
+	}
+	return ""
+}
+
+func (x *Block) GetReceiptsRoot() string {
+	if x != nil {
+		return x.ReceiptsRoot
+	}
+	return ""
+}
+
+func (x *Block) GetStateRoot() string {
+	if x != nil {
+		return x.StateRoot
+	}
+	return ""
+}
+
 type Block_Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BlockHash            string `protobuf:"bytes,1,opt,name=BlockHash,proto3" json:"BlockHash,omitempty"`
-	BlockNumber          string `protobuf:"bytes,2,opt,name=BlockNumber,proto3" json:"BlockNumber,omitempty"`
-	From                 string `protobuf:"bytes,3,opt,name=From,proto3" json:"From,omitempty"`
-	Gas                  string `protobuf:"bytes,4,opt,name=Gas,proto3" json:"Gas,omitempty"`
-	GasPrice             string `protobuf:"bytes,5,opt,name=GasPrice,proto3" json:"GasPrice,omitempty"`
-	GasUsed              string `protobuf:"bytes,6,opt,name=GasUsed,proto3" json:"GasUsed,omitempty"`
-	HasToken             bool   `protobuf:"varint,7,opt,name=HasToken,proto3" json:"HasToken,omitempty"`
-	Hash                 string `protobuf:"bytes,8,opt,name=Hash,proto3" json:"Hash,omitempty"`
-	Input                string `protobuf:"bytes,9,opt,name=Input,proto3" json:"Input,omitempty"`
-	IsError              bool   `protobuf:"varint,10,opt,name=IsError,proto3" json:"IsError,omitempty"`
-	MaxFeePerGas         string `protobuf:"bytes,11,opt,name=MaxFeePerGas,proto3" json:"MaxFeePerGas,omitempty"`
-	MaxPriorityFeePerGas string `protobuf:"bytes,12,opt,name=MaxPriorityFeePerGas,proto3" json:"MaxPriorityFeePerGas,omitempty"`
-	Nonce                uint64 `protobuf:"varint,13,opt,name=Nonce,proto3" json:"Nonce,omitempty"`
-	Timestamp            uint64 `protobuf:"varint,14,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
-	To                   string `protobuf:"bytes,15,opt,name=To,proto3" json:"To,omitempty"`
-	TransactionIndex     string `protobuf:"bytes,16,opt,name=TransactionIndex,proto3" json:"TransactionIndex,omitempty"`
-	TransactionType      string `protobuf:"bytes,17,opt,name=TransactionType,proto3" json:"TransactionType,omitempty"`
-	Value                string `protobuf:"bytes,18,opt,name=Value,proto3" json:"Value,omitempty"`
-	Message              string `protobuf:"bytes,19,opt,name=Message,proto3" json:"Message,omitempty"`
-	V                    string `protobuf:"bytes,20,opt,name=V,proto3" json:"V,omitempty"`
-	R                    string `protobuf:"bytes,21,opt,name=R,proto3" json:"R,omitempty"`
-	S                    string `protobuf:"bytes,22,opt,name=S,proto3" json:"S,omitempty"`
-	YParity              string `protobuf:"bytes,23,opt,name=YParity,proto3" json:"YParity,omitempty"`
+	BlockHash            string                          `protobuf:"bytes,1,opt,name=BlockHash,proto3" json:"BlockHash,omitempty"`
+	BlockNumber          string                          `protobuf:"bytes,2,opt,name=BlockNumber,proto3" json:"BlockNumber,omitempty"`
+	From                 string                          `protobuf:"bytes,3,opt,name=From,proto3" json:"From,omitempty"`
+	Gas                  string                          `protobuf:"bytes,4,opt,name=Gas,proto3" json:"Gas,omitempty"`
+	GasPrice             string                          `protobuf:"bytes,5,opt,name=GasPrice,proto3" json:"GasPrice,omitempty"`
+	GasUsed              string                          `protobuf:"bytes,6,opt,name=GasUsed,proto3" json:"GasUsed,omitempty"`
+	HasToken             bool                            `protobuf:"varint,7,opt,name=HasToken,proto3" json:"HasToken,omitempty"`
+	Hash                 string                          `protobuf:"bytes,8,opt,name=Hash,proto3" json:"Hash,omitempty"`
+	Input                string                          `protobuf:"bytes,9,opt,name=Input,proto3" json:"Input,omitempty"`
+	IsError              bool                            `protobuf:"varint,10,opt,name=IsError,proto3" json:"IsError,omitempty"`
+	MaxFeePerGas         string                          `protobuf:"bytes,11,opt,name=MaxFeePerGas,proto3" json:"MaxFeePerGas,omitempty"`
+	MaxPriorityFeePerGas string                          `protobuf:"bytes,12,opt,name=MaxPriorityFeePerGas,proto3" json:"MaxPriorityFeePerGas,omitempty"`
+	Nonce                uint64                          `protobuf:"varint,13,opt,name=Nonce,proto3" json:"Nonce,omitempty"`
+	Timestamp            uint64                          `protobuf:"varint,14,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
+	To                   string                          `protobuf:"bytes,15,opt,name=To,proto3" json:"To,omitempty"`
+	TransactionIndex     string                          `protobuf:"bytes,16,opt,name=TransactionIndex,proto3" json:"TransactionIndex,omitempty"`
+	TransactionType      string                          `protobuf:"bytes,17,opt,name=TransactionType,proto3" json:"TransactionType,omitempty"`
+	Value                string                          `protobuf:"bytes,18,opt,name=Value,proto3" json:"Value,omitempty"`
+	Message              string                          `protobuf:"bytes,19,opt,name=Message,proto3" json:"Message,omitempty"`
+	V                    string                          `protobuf:"bytes,20,opt,name=V,proto3" json:"V,omitempty"`
+	R                    string                          `protobuf:"bytes,21,opt,name=R,proto3" json:"R,omitempty"`
+	S                    string                          `protobuf:"bytes,22,opt,name=S,proto3" json:"S,omitempty"`
+	YParity              string                          `protobuf:"bytes,23,opt,name=YParity,proto3" json:"YParity,omitempty"`
+	AccessLists          []*Block_Transaction_AccessList `protobuf:"bytes,24,rep,name=AccessLists,proto3" json:"AccessLists,omitempty"`
 }
 
 func (x *Block_Transaction) Reset() {
@@ -394,11 +435,73 @@ func (x *Block_Transaction) GetYParity() string {
 	return ""
 }
 
+func (x *Block_Transaction) GetAccessLists() []*Block_Transaction_AccessList {
+	if x != nil {
+		return x.AccessLists
+	}
+	return nil
+}
+
+type Block_Transaction_AccessList struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Address     string   `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"`
+	StorageKeys []string `protobuf:"bytes,2,rep,name=StorageKeys,proto3" json:"StorageKeys,omitempty"`
+}
+
+func (x *Block_Transaction_AccessList) Reset() {
+	*x = Block_Transaction_AccessList{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_block_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Block_Transaction_AccessList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Block_Transaction_AccessList) ProtoMessage() {}
+
+func (x *Block_Transaction_AccessList) ProtoReflect() protoreflect.Message {
+	mi := &file_block_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Block_Transaction_AccessList.ProtoReflect.Descriptor instead.
+func (*Block_Transaction_AccessList) Descriptor() ([]byte, []int) {
+	return file_block_proto_rawDescGZIP(), []int{0, 0, 0}
+}
+
+func (x *Block_Transaction_AccessList) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Block_Transaction_AccessList) GetStorageKeys() []string {
+	if x != nil {
+		return x.StorageKeys
+	}
+	return nil
+}
+
 var File_block_proto protoreflect.FileDescriptor
 
 var file_block_proto_rawDesc = []byte{
 	0x0a, 0x0b, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x22, 0xb0, 0x08, 0x0a, 0x05, 0x42, 0x6c, 0x6f, 0x63,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x22, 0x84, 0x0b, 0x0a, 0x05, 0x42, 0x6c, 0x6f, 0x63,
 	0x6b, 0x12, 0x24, 0x0a, 0x0d, 0x42, 0x61, 0x73, 0x65, 0x46, 0x65, 0x65, 0x50, 0x65, 0x72, 0x47,
 	0x61, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x42, 0x61, 0x73, 0x65, 0x46, 0x65,
 	0x65, 0x50, 0x65, 0x72, 0x47, 0x61, 0x73, 0x12, 0x20, 0x0a, 0x0b, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
@@ -426,7 +529,19 @@ var file_block_proto_rawDesc = []byte{
 	0x0a, 0x0b, 0x57, 0x69, 0x74, 0x68, 0x64, 0x72, 0x61, 0x77, 0x61, 0x6c, 0x73, 0x18, 0x0d, 0x20,
 	0x03, 0x28, 0x09, 0x52, 0x0b, 0x57, 0x69, 0x74, 0x68, 0x64, 0x72, 0x61, 0x77, 0x61, 0x6c, 0x73,
 	0x12, 0x16, 0x0a, 0x06, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x0e, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x06, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x1a, 0xef, 0x04, 0x0a, 0x0b, 0x54, 0x72, 0x61,
+	0x52, 0x06, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x20, 0x0a, 0x0b, 0x42, 0x6c, 0x6f, 0x62,
+	0x47, 0x61, 0x73, 0x55, 0x73, 0x65, 0x64, 0x18, 0x0f, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x42,
+	0x6c, 0x6f, 0x62, 0x47, 0x61, 0x73, 0x55, 0x73, 0x65, 0x64, 0x12, 0x24, 0x0a, 0x0d, 0x45, 0x78,
+	0x63, 0x65, 0x73, 0x73, 0x42, 0x6c, 0x6f, 0x62, 0x47, 0x61, 0x73, 0x18, 0x10, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x0d, 0x45, 0x78, 0x63, 0x65, 0x73, 0x73, 0x42, 0x6c, 0x6f, 0x62, 0x47, 0x61, 0x73,
+	0x12, 0x34, 0x0a, 0x15, 0x50, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x42, 0x65, 0x61, 0x63, 0x6f, 0x6e,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x6f, 0x6f, 0x74, 0x18, 0x11, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x15, 0x50, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x42, 0x65, 0x61, 0x63, 0x6f, 0x6e, 0x42, 0x6c, 0x6f,
+	0x63, 0x6b, 0x52, 0x6f, 0x6f, 0x74, 0x12, 0x22, 0x0a, 0x0c, 0x52, 0x65, 0x63, 0x65, 0x69, 0x70,
+	0x74, 0x73, 0x52, 0x6f, 0x6f, 0x74, 0x18, 0x12, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x52, 0x65,
+	0x63, 0x65, 0x69, 0x70, 0x74, 0x73, 0x52, 0x6f, 0x6f, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x53, 0x74,
+	0x61, 0x74, 0x65, 0x52, 0x6f, 0x6f, 0x74, 0x18, 0x13, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x53,
+	0x74, 0x61, 0x74, 0x65, 0x52, 0x6f, 0x6f, 0x74, 0x1a, 0x83, 0x06, 0x0a, 0x0b, 0x54, 0x72, 0x61,
 	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1c, 0x0a, 0x09, 0x42, 0x6c, 0x6f, 0x63,
 	0x6b, 0x48, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x42, 0x6c, 0x6f,
 	0x63, 0x6b, 0x48, 0x61, 0x73, 0x68, 0x12, 0x20, 0x0a, 0x0b, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x4e,
@@ -465,9 +580,18 @@ var file_block_proto_rawDesc = []byte{
 	0x09, 0x52, 0x01, 0x56, 0x12, 0x0c, 0x0a, 0x01, 0x52, 0x18, 0x15, 0x20, 0x01, 0x28, 0x09, 0x52,
 	0x01, 0x52, 0x12, 0x0c, 0x0a, 0x01, 0x53, 0x18, 0x16, 0x20, 0x01, 0x28, 0x09, 0x52, 0x01, 0x53,
 	0x12, 0x18, 0x0a, 0x07, 0x59, 0x50, 0x61, 0x72, 0x69, 0x74, 0x79, 0x18, 0x17, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x07, 0x59, 0x50, 0x61, 0x72, 0x69, 0x74, 0x79, 0x42, 0x0e, 0x5a, 0x0c, 0x73, 0x72,
-	0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x09, 0x52, 0x07, 0x59, 0x50, 0x61, 0x72, 0x69, 0x74, 0x79, 0x12, 0x48, 0x0a, 0x0b, 0x41, 0x63,
+	0x63, 0x65, 0x73, 0x73, 0x4c, 0x69, 0x73, 0x74, 0x73, 0x18, 0x18, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x26, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x41, 0x63, 0x63,
+	0x65, 0x73, 0x73, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x0b, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x4c,
+	0x69, 0x73, 0x74, 0x73, 0x1a, 0x48, 0x0a, 0x0a, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x4c, 0x69,
+	0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x07, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x20, 0x0a, 0x0b,
+	0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x4b, 0x65, 0x79, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28,
+	0x09, 0x52, 0x0b, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x4b, 0x65, 0x79, 0x73, 0x42, 0x0e,
+	0x5a, 0x0c, 0x73, 0x72, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -482,18 +606,20 @@ func file_block_proto_rawDescGZIP() []byte {
 	return file_block_proto_rawDescData
 }
 
-var file_block_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_block_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_block_proto_goTypes = []any{
-	(*Block)(nil),             // 0: protobuf.Block
-	(*Block_Transaction)(nil), // 1: protobuf.Block.Transaction
+	(*Block)(nil),                        // 0: protobuf.Block
+	(*Block_Transaction)(nil),            // 1: protobuf.Block.Transaction
+	(*Block_Transaction_AccessList)(nil), // 2: protobuf.Block.Transaction.AccessList
 }
 var file_block_proto_depIdxs = []int32{
 	1, // 0: protobuf.Block.Transactions:type_name -> protobuf.Block.Transaction
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: protobuf.Block.Transaction.AccessLists:type_name -> protobuf.Block.Transaction.AccessList
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_block_proto_init() }
@@ -526,6 +652,18 @@ func file_block_proto_init() {
 				return nil
 			}
 		}
+		file_block_proto_msgTypes[2].Exporter = func(v any, i int) any {
+			switch v := v.(*Block_Transaction_AccessList); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -533,7 +671,7 @@ func file_block_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_block_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

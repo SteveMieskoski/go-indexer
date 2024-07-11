@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package protobuf;
+option go_package="src/protobuf";
+
+message Blob {
+  string Index = 1;
+  string Blob = 2;
+  SignedBeaconBlockHeader SignedBlockHeader = 3;
+  string KzgCommitment = 4;
+  string KzgProof = 5;
+  repeated string KzgCommitmentInclusionProof = 6;
+}
+
+message SignedBeaconBlockHeader {
+  string Signature = 1;
+  BeaconBlockHeader BeaconHeader = 2;
+}
+
+message BeaconBlockHeader {
+  string Slot = 1;
+  string ProposerIndex = 2;
+  string ParentRoot = 3;
+  string StateRoot = 4;
+  string BodyRoot = 5;
+}
+
+message BeaconHeaderResponse {
+
+  message Header {
+    SignedBeaconBlockHeader Header = 1;
+    string Root = 2;
+    bool Canonical = 3;
+  }
+  repeated Header Data = 1;
+  bool ExecutionOptimistic = 2;
+  bool Finalized = 3;
+}

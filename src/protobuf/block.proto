@@ -39,6 +39,12 @@ message Block {
     string R = 21;
     string S = 22;
     string YParity = 23;
+    repeated AccessList AccessLists = 24;
+
+    message AccessList {
+      string Address = 1;
+      repeated string StorageKeys = 2;
+    }
   }
 
   repeated Transaction Transactions = 11;
@@ -46,4 +52,9 @@ message Block {
   repeated string Uncles = 12;
   repeated string Withdrawals = 13;
   string Number = 14;
+  string BlobGasUsed = 15;
+  string ExcessBlobGas = 16;
+  string ParentBeaconBlockRoot = 17;
+  string ReceiptsRoot = 18;
+  string StateRoot = 19;
 }
