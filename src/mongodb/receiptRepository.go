@@ -46,6 +46,8 @@ func (app *receiptRepository) AddIndex() (string, error) {
 	return name, nil
 }
 
+// TODO: need to use a postgres table or other intermediary to extract contract code from the tx
+// TODO: that created the contract and is reported in the receipt
 func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context) (string, error) {
 
 	//if !app.indicesExist {
