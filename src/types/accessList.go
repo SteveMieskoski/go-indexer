@@ -34,16 +34,16 @@ func (s AccessList) MongoFromGoType(lg AccessList) MongoAccessList {
 	}
 }
 
-func (s AccessList) ProtobufFromGoType(lg AccessList) protobufLocal.Block_Transaction_AccessList {
+func (s AccessList) ProtobufFromGoType(lg AccessList) protobufLocal.AccessList {
 	logString := s.MongoFromGoType(lg)
 
-	return protobufLocal.Block_Transaction_AccessList{
+	return protobufLocal.AccessList{
 		Address:     logString.Address,
 		StorageKeys: logString.StorageKeys,
 	}
 }
 
-func (s AccessList) MongoFromProtobufType(lg protobufLocal.Block_Transaction_AccessList) *MongoAccessList {
+func (s AccessList) MongoFromProtobufType(lg protobufLocal.AccessList) *MongoAccessList {
 
 	return &MongoAccessList{
 		Address:     lg.Address,
@@ -51,9 +51,9 @@ func (s AccessList) MongoFromProtobufType(lg protobufLocal.Block_Transaction_Acc
 	}
 }
 
-func (s AccessList) ProtobufFromMongoType(lg MongoAccessList) *protobufLocal.Block_Transaction_AccessList {
+func (s AccessList) ProtobufFromMongoType(lg MongoAccessList) *protobufLocal.AccessList {
 
-	return &protobufLocal.Block_Transaction_AccessList{
+	return &protobufLocal.AccessList{
 		Address:     lg.Address,
 		StorageKeys: lg.StorageKeys,
 	}

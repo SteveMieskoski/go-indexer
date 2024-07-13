@@ -73,7 +73,7 @@ func (r *BlockRunner) getCurrentBlock() {
 		if int(block.Number) > r.lastBlock {
 			// todo | set up a retry mechanism or
 			// todo | need a way to check (i.e. bloom filters on consumer side maybe) that no blocks were missed
-			completed := r.producerFactory.Produce("Block", block)
+			completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 
 			if completed {
 				err := r.redis.Set("missingBlock", int(block.Number))
@@ -92,13 +92,13 @@ func (r *BlockRunner) getCurrentBlock() {
 						return
 					}
 					for _, Receipt := range receipts {
-						r.producerFactory.Produce("Receipt", *Receipt)
+						r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
 					}
 				}(convertedBlock.Hash)
 
 				go func(transactions []types.Transaction) {
 					for _, tx := range transactions {
-						r.producerFactory.Produce("Transaction", tx)
+						r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
 					}
 				}(block.Transactions)
 
@@ -162,7 +162,7 @@ func (r *BlockRunner) getPriorBlocks(blockRetriever engine.BlockRetriever) {
 			//BlockNumToGetChan <- i
 			block := blockRetriever.GetBlock(lastBlockRetrieved)
 
-			completed = producerFactory.Produce("Block", block)
+			completed = producerFactory.Produce(types.BLOCK_TOPIC, block)
 			if completed {
 				convertedBlock := types.Block{}.MongoFromGoType(block)
 				utils.Logger.Infof("Transactions In Past Block: %d", len(convertedBlock.Transactions))
@@ -174,13 +174,13 @@ func (r *BlockRunner) getPriorBlocks(blockRetriever engine.BlockRetriever) {
 						return
 					}
 					for _, Receipt := range receipts {
-						producerFactory.Produce("Receipt", *Receipt)
+						producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
 					}
 				}(convertedBlock.Hash)
 
 				go func(transactions []types.Transaction) {
 					for _, tx := range transactions {
-						producerFactory.Produce("Transaction", tx)
+						producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
 					}
 				}(block.Transactions)
 
@@ -230,7 +230,7 @@ func (r *BlockRunner) getPriorBlock(blockRetriever engine.BlockRetriever, blockN
 		//BlockNumToGetChan <- i
 		block := blockRetriever.GetBlock(blockNumber)
 
-		completed = r.producerFactory.Produce("Block", block)
+		completed = r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 		if completed {
 			convertedBlock := types.Block{}.MongoFromGoType(block)
 			utils.Logger.Infof("Transactions In Past Block: %d", len(convertedBlock.Transactions))
@@ -242,13 +242,13 @@ func (r *BlockRunner) getPriorBlock(blockRetriever engine.BlockRetriever, blockN
 					return
 				}
 				for _, Receipt := range receipts {
-					r.producerFactory.Produce("Receipt", *Receipt)
+					r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
 				}
 			}(convertedBlock.Hash)
 
 			go func(transactions []types.Transaction) {
 				for _, tx := range transactions {
-					r.producerFactory.Produce("Transaction", tx)
+					r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
 				}
 			}(block.Transactions)
 

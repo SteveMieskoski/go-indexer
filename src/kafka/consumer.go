@@ -11,6 +11,7 @@ import (
 	"src/mongodb"
 	"src/postgres"
 	protobuf2 "src/protobuf"
+	"src/types"
 	"src/utils"
 	"sync"
 	"syscall"
@@ -297,7 +298,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				return nil
 			}
 
-			if message.Topic == "Block" {
+			if message.Topic == types.BLOCK_TOPIC {
 				var block protobuf2.Block
 				err := proto.Unmarshal(message.Value, &block)
 				if err != nil {
@@ -307,7 +308,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				utils.Logger.Infof("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
 			}
 
-			if message.Topic == "Receipt" {
+			if message.Topic == types.RECEIPT_TOPIC {
 				var receipt protobuf2.Receipt
 				err := proto.Unmarshal(message.Value, &receipt)
 				if err != nil {
@@ -322,7 +323,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
 
-			if message.Topic == "Blob" {
+			if message.Topic == types.BLOB_TOPIC {
 				var blob protobuf2.Blob
 				err := proto.Unmarshal(message.Value, &blob)
 				if err != nil {
@@ -331,6 +332,17 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				consumer.DatabaseCoordinator.AddBlob() <- consumer.DatabaseCoordinator.ConvertToBlob(&blob)
 
 				utils.Logger.Infof("Message claimed: Blob = %s, timestamp = %v, topic = %s", blob.GetKzgCommitment(), message.Timestamp, message.Topic)
+			}
+
+			if message.Topic == types.TRANSACTION_TOPIC {
+				var tx protobuf2.Transaction
+				err := proto.Unmarshal(message.Value, &tx)
+				if err != nil {
+					return err
+				}
+				consumer.DatabaseCoordinator.AddTransaction() <- consumer.DatabaseCoordinator.ConvertToTransaction(&tx)
+
+				utils.Logger.Infof("Message claimed: Tx Hash = %s, timestamp = %v, topic = %s", tx.Hash, message.Timestamp, message.Topic)
 			}
 
 			session.MarkMessage(message, "")

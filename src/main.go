@@ -4,7 +4,6 @@ import (
 	"flag"
 	"github.com/joho/godotenv"
 	"src/internal"
-	"src/kafka"
 	"src/utils"
 )
 
@@ -23,7 +22,9 @@ func main() {
 	println(*mode) // todo remove dev item
 	if *mode == "consume" {
 		utils.Logger.Info("starting as consumer")
-		kafka.NewMongoDbConsumer([]string{"Block", "Receipt", "Blob"})
+		internal.ConsumerRun()
+		// []string{"Block", "Receipt", "Blob"}
+		//kafka.NewMongoDbConsumer()
 	}
 
 	if *mode == "produce" {

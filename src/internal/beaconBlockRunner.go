@@ -7,6 +7,7 @@ import (
 	"src/engine"
 	"src/kafka"
 	"src/redisdb"
+	"src/types"
 	"src/utils"
 	"strconv"
 	"syscall"
@@ -32,7 +33,6 @@ func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRu
 		producerFactory:          producerFactory,
 		redis:                    *redisClient,
 	}
-
 }
 
 func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
@@ -52,14 +52,14 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 			sideCar := engine.GetBlobSideCars(strconv.Itoa(currentSlot))
 
 			for _, blob := range sideCar.Data {
-				completed := b.producerFactory.Produce("Blob", blob)
+				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blob)
 				if !completed {
 					time.Sleep(50 * time.Millisecond)
 					err := b.redis.Set("BlobError_"+blob.Index+"_"+currentSlotString, blob.Index)
 					if err != nil {
 						utils.Logger.Errorf("Error Setting Blob Error in Redis for Blob index: %s, slot number: %s", blob.Index, currentSlotString)
 					}
-					b.producerFactory.Produce("Blob", blob)
+					b.producerFactory.Produce(types.BLOB_TOPIC, blob)
 				}
 			}
 			blockNumberKey := generateSlotNumberKey(currentSlot)
@@ -124,7 +124,7 @@ func (b *BeaconBlockRunner) getPriorBeaconBlocks(currentSlot int, skippedSlotCou
 
 			for _, blob := range sideCar.Data {
 
-				b.producerFactory.Produce("Blob", *blob)
+				b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 			}
 			blockNumberKey := generateSlotNumberKey(currentSlot)
 			err := b.redis.Set(blockNumberKey, true)
@@ -161,7 +161,7 @@ func (b *BeaconBlockRunner) getPriorBeaconBlock(slot int) {
 
 		for _, blob := range sideCar.Data {
 
-			b.producerFactory.Produce("Blob", *blob)
+			b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		}
 		blockNumberKey := generateSlotNumberKey(slot)
 		err := b.redis.Set(blockNumberKey, true)

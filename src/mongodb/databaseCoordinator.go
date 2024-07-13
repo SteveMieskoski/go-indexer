@@ -12,25 +12,29 @@ type DatabaseCoordinator interface {
 	AddReceipt() chan<- *types.MongoReceipt
 	AddLog() chan<- *types.MongoLog
 	AddBlob() chan<- *types.MongoBlob
+	AddTransaction() chan<- *types.MongoTransaction
 	Close()
 	ConvertToBlock(block protobuf2.Block) *types.MongoBlock
 	ConvertToReceipt(receipt protobuf2.Receipt) *types.MongoReceipt
 	ConvertToLog(logVal *protobuf2.Receipt_Log) *types.MongoLog
 	ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob
+	ConvertToTransaction(tx *protobuf2.Transaction) *types.MongoTransaction
 }
 
 type databaseCoordinator struct {
 	//ctx               context.Context
-	BlockRepository   BlockRepository
-	ReceiptRepository ReceiptRepository
-	LogRepository     LogRepository
-	BlobRepository    BlobRepository
-	AddressRepository postgres.AddressRepository
-	blockChan         chan *types.MongoBlock
-	receiptChan       chan *types.MongoReceipt
-	logChan           chan *types.MongoLog
-	addressChan       chan *types.Address
-	blobChan          chan *types.MongoBlob
+	BlockRepository       BlockRepository
+	ReceiptRepository     ReceiptRepository
+	LogRepository         LogRepository
+	BlobRepository        BlobRepository
+	TransactionRepository TransactionRepository
+	AddressRepository     postgres.AddressRepository
+	blockChan             chan *types.MongoBlock
+	receiptChan           chan *types.MongoReceipt
+	logChan               chan *types.MongoLog
+	addressChan           chan *types.Address
+	blobChan              chan *types.MongoBlob
+	transactionChan       chan *types.MongoTransaction
 }
 
 func NewDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, error) {
@@ -63,6 +67,12 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 		Collection: "blobs",
 	}
 
+	transactionDbSettings := &DatabaseSetting{
+		Url:        settings.Url,
+		DbName:     settings.DbName,
+		Collection: "transactions",
+	}
+
 	pg := postgres.NewClient()
 
 	client, err := GetClient(settings)
@@ -83,22 +93,25 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 	}
 
 	AddressRepository := postgres.NewAddressRepository(pg)
+	TransactionRepository := NewTransactionRepository(client, transactionDbSettings)
 	BlockRepository := NewBlockRepository(client, blockDbSettings)
 	ReceiptRepository := NewReceiptRepository(client2, receiptDbSettings)
 	LogRepository := NewLogRepository(client3, logDbSettings)
 	BlobRepository := NewBlobRepository(client4, blobDbSettings)
 
 	dbc := &databaseCoordinator{
-		BlockRepository:   BlockRepository,
-		ReceiptRepository: ReceiptRepository,
-		LogRepository:     LogRepository,
-		BlobRepository:    BlobRepository,
-		AddressRepository: AddressRepository,
-		blockChan:         make(chan *types.MongoBlock),
-		receiptChan:       make(chan *types.MongoReceipt),
-		logChan:           make(chan *types.MongoLog),
-		blobChan:          make(chan *types.MongoBlob),
-		addressChan:       make(chan *types.Address),
+		BlockRepository:       BlockRepository,
+		ReceiptRepository:     ReceiptRepository,
+		LogRepository:         LogRepository,
+		BlobRepository:        BlobRepository,
+		TransactionRepository: TransactionRepository,
+		AddressRepository:     AddressRepository,
+		blockChan:             make(chan *types.MongoBlock),
+		receiptChan:           make(chan *types.MongoReceipt),
+		logChan:               make(chan *types.MongoLog),
+		blobChan:              make(chan *types.MongoBlob),
+		addressChan:           make(chan *types.Address),
+		transactionChan:       make(chan *types.MongoTransaction),
 	}
 
 	go func() {
@@ -144,12 +157,17 @@ func (db *databaseCoordinator) AddBlob() chan<- *types.MongoBlob {
 	return db.blobChan
 }
 
+func (db *databaseCoordinator) AddTransaction() chan<- *types.MongoTransaction {
+	return db.transactionChan
+}
+
 func (db *databaseCoordinator) Close() {
 	close(db.blockChan)
 	close(db.receiptChan)
 	close(db.logChan)
 	close(db.addressChan)
 	close(db.blobChan)
+	close(db.transactionChan)
 }
 
 func (db *databaseCoordinator) monitorBlockChannel() {
@@ -180,6 +198,15 @@ func (db *databaseCoordinator) monitorReceiptChannel() {
 func (db *databaseCoordinator) monitorLogChannel() {
 	for log := range db.logChan {
 		_, err := db.LogRepository.Add(*log, context.Background())
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (db *databaseCoordinator) monitorTransactionChannel() {
+	for tx := range db.transactionChan {
+		_, err := db.TransactionRepository.Add(*tx, context.Background())
 		if err != nil {
 			return
 		}
@@ -220,4 +247,8 @@ func (db *databaseCoordinator) ConvertToLog(logVal *protobuf2.Receipt_Log) *type
 
 func (db *databaseCoordinator) ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob {
 	return types.Blob{}.MongoFromProtobufType(*blob)
+}
+
+func (db *databaseCoordinator) ConvertToTransaction(tx *protobuf2.Transaction) *types.MongoTransaction {
+	return types.Transaction{}.MongoFromProtobufType(*tx)
 }

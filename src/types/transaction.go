@@ -102,16 +102,16 @@ func (s Transaction) MongoFromGoType(tx Transaction) MongoTransaction {
 	}
 }
 
-func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Block_Transaction {
+func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Transaction {
 	txString := s.MongoFromGoType(tx)
 
-	var convertedAccessList []*protobufLocal.Block_Transaction_AccessList
+	var convertedAccessList []*protobufLocal.AccessList
 
 	for _, v := range txString.AccessList {
 		convertedAccessList = append(convertedAccessList, AccessList{}.ProtobufFromMongoType(v))
 	}
 
-	return protobufLocal.Block_Transaction{
+	return protobufLocal.Transaction{
 		BlockHash:            txString.BlockHash,
 		BlockNumber:          txString.BlockNumber,
 		From:                 txString.From,
@@ -139,7 +139,7 @@ func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Block_Tran
 	}
 }
 
-func (s Transaction) MongoFromProtobufType(tx protobufLocal.Block_Transaction) MongoTransaction {
+func (s Transaction) MongoFromProtobufType(tx protobufLocal.Transaction) *MongoTransaction {
 
 	var convertedAccessList []MongoAccessList
 	for _, log := range tx.AccessLists {
@@ -147,7 +147,7 @@ func (s Transaction) MongoFromProtobufType(tx protobufLocal.Block_Transaction) M
 		convertedAccessList = append(convertedAccessList, *result)
 	}
 
-	return MongoTransaction{
+	return &MongoTransaction{
 		BlockHash:            tx.BlockHash,
 		BlockNumber:          tx.BlockNumber,
 		From:                 tx.From,
@@ -175,15 +175,15 @@ func (s Transaction) MongoFromProtobufType(tx protobufLocal.Block_Transaction) M
 	}
 }
 
-func (s Transaction) ProtobufFromMongoType(txString MongoTransaction) *protobufLocal.Block_Transaction {
+func (s Transaction) ProtobufFromMongoType(txString MongoTransaction) *protobufLocal.Transaction {
 
-	var convertedAccessList []*protobufLocal.Block_Transaction_AccessList
+	var convertedAccessList []*protobufLocal.AccessList
 
 	for _, v := range txString.AccessList {
 		convertedAccessList = append(convertedAccessList, AccessList{}.ProtobufFromMongoType(v))
 	}
 
-	return &protobufLocal.Block_Transaction{
+	return &protobufLocal.Transaction{
 		BlockHash:            txString.BlockHash,
 		BlockNumber:          txString.BlockNumber,
 		From:                 txString.From,

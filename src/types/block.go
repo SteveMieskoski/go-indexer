@@ -99,7 +99,7 @@ func (s Block) MongoFromGoType(block Block) MongoBlock {
 func (s Block) ProtobufFromGoType(block Block) protobufLocal.Block {
 	blockString := s.MongoFromGoType(block)
 
-	var convertedArray []*protobufLocal.Block_Transaction
+	var convertedArray []*protobufLocal.Transaction
 
 	for _, v := range blockString.Transactions {
 		convertedArray = append(convertedArray, Transaction{}.ProtobufFromMongoType(v))
@@ -133,7 +133,8 @@ func (s Block) MongoFromProtobufType(block protobufLocal.Block) *MongoBlock {
 	var convertedArray []MongoTransaction
 
 	for _, v := range block.Transactions {
-		convertedArray = append(convertedArray, Transaction{}.MongoFromProtobufType(*v))
+		tx := Transaction{}.MongoFromProtobufType(*v)
+		convertedArray = append(convertedArray, *tx)
 	}
 
 	return &MongoBlock{
@@ -162,7 +163,7 @@ func (s Block) MongoFromProtobufType(block protobufLocal.Block) *MongoBlock {
 
 func (s Block) ProtobufFromMongoType(blockString MongoBlock) *protobufLocal.Block {
 
-	var convertedArray []*protobufLocal.Block_Transaction
+	var convertedArray []*protobufLocal.Transaction
 
 	for _, v := range blockString.Transactions {
 		convertedArray = append(convertedArray, Transaction{}.ProtobufFromMongoType(v))
