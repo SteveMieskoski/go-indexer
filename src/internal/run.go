@@ -3,7 +3,6 @@ package internal
 import (
 	"src/kafka"
 	"src/mongodb"
-	"src/redisdb"
 )
 
 var settings = mongodb.DatabaseSetting{
@@ -16,12 +15,10 @@ var brokers = []string{"localhost:9092"}
 
 func Run() {
 
-	redisClient := redisdb.NewClient()
-
 	producerFactory := kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig)
 
-	runs := NewBlockRunner()
-	beaconBlockRunner := NewBeaconBlockRunner(*redisClient, producerFactory)
+	runs := NewBlockRunner(producerFactory)
+	beaconBlockRunner := NewBeaconBlockRunner(producerFactory)
 
 	go func() {
 		beaconBlockRunner.getCurrentBeaconBlock()

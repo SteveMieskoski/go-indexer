@@ -147,10 +147,11 @@ func NewMongoDbConsumer(topics []string) {
 		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
 	}
 
+	uri := os.Getenv("MONGO_URI")
 	var settings = mongodb.DatabaseSetting{
-		Url:        "mongodb://localhost:27017",
+		Url:        uri,
 		DbName:     "blocks",
-		Collection: "blocks",
+		Collection: "blocks", // default Collection Name. Overridden in consumer.go
 	}
 
 	/**

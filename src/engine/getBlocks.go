@@ -51,6 +51,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 			return
 		}
 
+		time.Sleep(5 * time.Millisecond)
 		// The connection is established now.
 		// Update the channel with the current block.
 		var lastBlock types.Block
@@ -73,7 +74,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 	return subch
 }
 
-func (b BlockRetriever) GetPastBlocks(blockToGet int) types.Block {
+func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
 	// Connect the client.
 	url := os.Getenv("WS_RPC_URL")
 	client, _ := rpc.Dial(url)
@@ -90,12 +91,11 @@ func (b BlockRetriever) GetPastBlocks(blockToGet int) types.Block {
 	// Update the channel with the current block.
 	var lastBlock types.Block
 	blockNumberToRetreive := strconv.FormatInt(int64(blockToGet), 16)
-	println(blockNumberToRetreive)
 	err := client.CallContext(ctx, &lastBlock, "eth_getBlockByNumber", "0x"+blockNumberToRetreive, true)
 	if err != nil {
-		utils.Logger.Error("can't get latest block:", err)
+		utils.Logger.Error("can't get block:", err)
 	}
 
-	utils.Logger.Infof("retrieved prior block %d", blockToGet)
+	utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock
 }

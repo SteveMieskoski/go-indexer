@@ -28,9 +28,9 @@ func GetBlockReceipts(url string, blockHash string) (types.Receipts, error) {
 
 		return r, err
 	}
-	if len(r) > 1 {
-		println(r[0].String())
-	}
+	//if len(r) > 1 {
+	//	println(r[0].String())
+	//}
 
 	return r, nil
 }

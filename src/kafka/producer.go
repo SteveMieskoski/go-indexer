@@ -18,7 +18,7 @@ var (
 	brokers   = []string{"localhost:9092"}
 	version   = "7.0.0"
 	topic     = "test"
-	producers = 2
+	producers = 6
 	verbose   = true
 
 	recordsNumber int64 = 100
@@ -123,6 +123,21 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 	case types.Receipt:
 
 		pbBlock := types.Receipt{}.ProtobufFromGoType(data)
+		blockToSend, err := proto.Marshal(&pbBlock)
+
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(blockToSend),
+		}
+		producer.Input() <- msg
+
+		if err != nil {
+			return false
+		}
+		break
+	case types.Transaction:
+
+		pbBlock := types.Transaction{}.ProtobufFromGoType(data)
 		blockToSend, err := proto.Marshal(&pbBlock)
 
 		msg := &sarama.ProducerMessage{

@@ -21,7 +21,7 @@ type DatabaseSetting struct {
 }
 
 func ConnectMongoDb() (*mongo.Client, error) {
-	//serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+
 	opts := options.Client().ApplyURI(uri) /*.SetServerAPIOptions(serverAPI)*/
 	// Create a new client and connect to the server
 	client, err := mongo.Connect(context.TODO(), opts)
