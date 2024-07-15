@@ -2,16 +2,16 @@ package internal
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/r3labs/sse/v2"
 	"os/signal"
 	"src/engine"
 	"src/kafka"
+	"src/postgres"
 	"src/redisdb"
 	"src/types"
 	"src/utils"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -22,11 +22,17 @@ type BeaconBlockRunner struct {
 	currentBeaconBlock       int
 	producerFactory          *kafka.ProducerProvider
 	redis                    redisdb.RedisClient
+	pgSlotSyncTrack          postgres.PgSlotSyncTrackRepository
+	pgRetryTrack             postgres.PgTrackForToRetryRepository
+	produceDelay             time.Duration
+	blobsToRetry             map[string][]string
 }
 
 func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient()
+	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient())
+	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
 
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,
@@ -34,69 +40,15 @@ func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRu
 		currentBeaconBlock:       0,
 		producerFactory:          producerFactory,
 		redis:                    *redisClient,
+		pgSlotSyncTrack:          pgSlotSyncTrack,
+		produceDelay:             100,
+		blobsToRetry:             make(map[string][]string),
+		pgRetryTrack:             pgRetryTrack,
 	}
 }
 
 func (b *BeaconBlockRunner) Demo() {
-	//events := make(chan *sse.Event)
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	events := make(chan *sse.Event)
 
-	client := sse.NewClient("http://127.0.0.1:3500/eth/v1/events?topics=block")
-	err := client.SubscribeChan("messages", events)
-	if err != nil {
-		return
-	}
-	type BBlock struct {
-		Slot                string `json:"slot,omitempty"`
-		Block               string `json:"block,omitempty"`
-		ExecutionOptimistic bool   `json:"execution_optimistic,omitempty"`
-	}
-
-	for event := range events {
-		fmt.Println(string(event.Data))
-
-		data := BBlock{}
-		_ = json.Unmarshal([]byte(string(event.Data)), &data)
-		println(data.Slot)
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received")
-			close(events)
-			syscall.Exit(1)
-			return
-		default:
-		}
-	}
-	//client := sse.NewClient("http://127.0.0.1:3500/eth/v1/events?topics=block")
-	////err := client.SubscribeChan("messages", events)
-	////if err != nil {
-	////	return
-	////}
-	//
-	//
-	//err := client.Subscribe("messages", func(msg *sse.Event) {
-	//	// Got some data!
-	//	fmt.Println(string(msg.Data))
-	//
-	//	data := BBlock{}
-	//	_ = json.Unmarshal([]byte(string(msg.Data)), &data)
-	//	println(data.Slot)
-	//	select {
-	//	case <-ctx.Done():
-	//		stop()
-	//		fmt.Println("signal received")
-	//		syscall.Exit(1)
-	//		return
-	//	default:
-	//	}
-	//})
-	if err != nil {
-		panic(err)
-		return
-	}
 }
 
 func (b *BeaconBlockRunner) StartBeaconSync() {
@@ -130,16 +82,33 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	//resultChan := make(chan bool)
+	//defer close(resultChan)
+
 	fmt.Printf("producer ready: %t\n", b.producerFactory.Connected)
 
 	blockGen := engine.BeaconHeader()
 
-	//fmt.Printf(lastBlock)
 	for latestBlock := range blockGen {
 		utils.Logger.Infof("Recieved latest Beacon block: %s", latestBlock.Slot)
-		//engine.GetBeaconHeaderBySlot(latestBlock.Slot)
+		var wg sync.WaitGroup
 
-		go b.processBlobSideCars(latestBlock.Slot)
+		sideCar := engine.GetBlobSideCars(latestBlock.Slot)
+
+		slotNum, _ := strconv.Atoi(latestBlock.Slot)
+		_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
+			Slot:           int64(slotNum),
+			Retrieved:      true,
+			Processed:      false,
+			BlobsProcessed: false,
+			BlobCount:      int64(len(sideCar.Data)),
+		})
+
+		if errr != nil {
+			utils.Logger.Errorln(errr)
+		}
+		wg.Add(1)
+		go b.processBlobSideCars(latestBlock.Slot, sideCar, &wg)
 
 		select {
 		case <-ctx.Done():
@@ -149,23 +118,32 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 		default:
 		}
 	}
-
 }
 
-func (b *BeaconBlockRunner) processBlobSideCars(slot string) {
-	sideCar := engine.GetBlobSideCars(slot)
+func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.SidecarsResponse, wg *sync.WaitGroup) {
+
 	for _, blob := range sideCar.Data {
 		completed := b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		if !completed {
 			utils.Logger.Errorf("Blob Error for Blob index: %s, slot number: %s", blob.Index, slot)
-			time.Sleep(50 * time.Millisecond)
-			err := b.redis.Set("BlobError_"+blob.Index+"_"+slot, blob.Index)
+			//b.blobsToRetry[slot] = append(b.blobsToRetry[slot], blob.Index)
+			_, err := b.pgRetryTrack.Add(types.PgTrackForToRetry{
+				DataType: "Blob",
+				BlockId:  slot,
+				RecordId: blob.Index,
+			})
 			if err != nil {
-				utils.Logger.Errorf("Error Setting Blob Error in Redis for Blob index: %s, slot number: %s", blob.Index, slot)
+				utils.Logger.Errorln(err)
 			}
-			b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
+			//err := b.redis.Set("BlobError_"+blob.Index+"_"+slot, blob.Index)
+			//if err != nil {
+			//	utils.Logger.Errorf("Error Setting Blob Error in Redis for Blob index: %s, slot number: %s", blob.Index, slot)
+			//}
+			//b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		}
 	}
+
+	wg.Done()
 }
 
 func (b *BeaconBlockRunner) processBeaconBlock(block *types.BeaconHeadersResponse) {
@@ -173,9 +151,11 @@ func (b *BeaconBlockRunner) processBeaconBlock(block *types.BeaconHeadersRespons
 }
 
 func (b *BeaconBlockRunner) getPriorSlots() {
-	//dbAccess := r.newBlockSyncTrack()
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	_, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	resultChan := make(chan bool)
+	defer close(resultChan)
 
 	Num, _ := b.redis.Get("BeaconSlotNumberOnSyncStart")
 	slotNumberOnSyncStart, _ := strconv.Atoi(Num)
@@ -193,202 +173,45 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 
 	for lastSlotRetrieved <= slotNumberOnSyncStart {
 		fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
-		go b.processBlobSideCars(strconv.Itoa(lastSlotRetrieved))
 
-		//batchResponse, err := r.slotRetriever.GetSlotBatch(lastSlotRetrieved, batchEndSlot)
-		//
-		//if err != nil {
-		//	goodRun = false
-		//	continue
-		//}
-		//for _, response := range batchResponse {
-		//	switch slot := response.Result.(type) {
-		//	case *types.Block:
-		//		_, err := dbAccess.Add(types.PgBlockSyncTrack{
-		//			Number:                int64(slot.Number),
-		//			Retrieved:             false,
-		//			Processed:             false,
-		//			ReceiptsProcessed:     false,
-		//			TransactionsProcessed: false,
-		//			ContractsProcessed:    false,
-		//		})
-		//
-		//		if err != nil {
-		//			// need to monitor to reduce batch size if db gets too slow
-		//			// add error log here
-		//			continue
-		//		}
-		//
-		//		go r.processBlock(*slot)
-		//	}
-		//
-		//}
+		var wg sync.WaitGroup
+		sideCar := engine.GetBlobSideCars(strconv.Itoa(lastSlotRetrieved))
 
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received")
-			return
-		default:
+		wg.Add(1)
+		_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
+			Slot:           int64(lastSlotRetrieved),
+			Retrieved:      true,
+			Processed:      false,
+			BlobsProcessed: false,
+			BlobCount:      int64(len(sideCar.Data)),
+		})
+
+		if errr != nil {
+			utils.Logger.Errorln(errr)
 		}
+		go b.processBlobSideCars(strconv.Itoa(lastSlotRetrieved), sideCar, &wg)
+
+		//select {
+		//case produceOk := <-resultChan:
+		//	if produceOk {
+		//		if b.produceDelay >= 200 {
+		//			b.produceDelay = b.produceDelay - 100
+		//		}
+		//	} else {
+		//		b.produceDelay = b.produceDelay + 100
+		//	}
+		//case <-ctx.Done():
+		//	stop()
+		//	fmt.Println("signal received")
+		//	return
+		//default:
+		//}
 
 		lastSlotRetrieved = lastSlotRetrieved + 1
-		time.Sleep(100 * time.Millisecond)
-
+		//time.Sleep(b.produceDelay * time.Millisecond)
+		println("WAITING ===================================================")
+		wg.Wait()
 	}
 
 	utils.Logger.Info("exiting: getPriorSlot External")
-}
-
-func (b *BeaconBlockRunner) getCurrentBeaconBlock2() {
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	fmt.Printf("producer ready: %t\n", b.producerFactory.Connected)
-
-	for {
-		bHeader := engine.GetBeaconHeader()
-
-		currentSlotString := bHeader.Data[0].Header.Message.Slot
-		currentSlot, _ := strconv.Atoi(currentSlotString)
-
-		if currentSlot > b.currentBeaconBlock {
-			sideCar := engine.GetBlobSideCars(strconv.Itoa(currentSlot))
-
-			for _, blob := range sideCar.Data {
-				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blob)
-				if !completed {
-					time.Sleep(50 * time.Millisecond)
-					err := b.redis.Set("BlobError_"+blob.Index+"_"+currentSlotString, blob.Index)
-					if err != nil {
-						utils.Logger.Errorf("Error Setting Blob Error in Redis for Blob index: %s, slot number: %s", blob.Index, currentSlotString)
-					}
-					b.producerFactory.Produce(types.BLOB_TOPIC, blob)
-				}
-			}
-			blockNumberKey := generateSlotNumberKey(currentSlot)
-			err := b.redis.Set(blockNumberKey, true)
-			if err != nil {
-				panic(err)
-			}
-			err = b.redis.Set("latestBeaconBlock", currentSlot)
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		// catch up to chain head
-		// does not run before syncing on start
-		if currentSlot-b.currentBeaconBlock > 1 && b.priorRetrievalInProgress {
-			go func() {
-				b.getPriorBeaconBlocks(currentSlot, currentSlot-b.currentBeaconBlock)
-			}()
-
-		}
-
-		// Runs once at the start of syncing
-		if currentSlot-b.priorBeaconBlock > 1 && !b.priorRetrievalInProgress {
-			b.priorRetrievalInProgress = true
-			go func() {
-				b.getPriorBeaconBlocks(currentSlot, currentSlot-b.priorBeaconBlock)
-			}()
-
-		}
-
-		b.currentBeaconBlock = currentSlot
-		fmt.Printf("finished getting blobs for slot %d\n", currentSlot)
-
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received: getCurrentBeaconBlock")
-			return
-		default:
-
-		}
-
-		//TODO: tie this more to checking when a new block head arrives, and looking to see if there
-		//TODO: is a gap between the prior beacon block and the currently reported head.
-		time.Sleep(10000 * time.Millisecond)
-	}
-
-}
-
-func (b *BeaconBlockRunner) getPriorBeaconBlocks(currentSlot int, skippedSlotCount int) {
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	for i := currentSlot - skippedSlotCount; i < currentSlot; i++ {
-		blockNumberKey := generateSlotNumberKey(i)
-		utils.Logger.Infof("Check if prior Beacon block retrieved: %d", i)
-		_, redisErr := b.redis.Get(blockNumberKey)
-		if redisErr != nil {
-			sideCar := engine.GetBlobSideCars(strconv.Itoa(i))
-
-			for _, blob := range sideCar.Data {
-
-				b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
-			}
-			blockNumberKey := generateSlotNumberKey(currentSlot)
-			err := b.redis.Set(blockNumberKey, true)
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received: getPriorBeaconBlocks")
-			return
-		default:
-
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	utils.Logger.Info("exiting: getPriorBeaconBlocks External")
-
-}
-
-func (b *BeaconBlockRunner) getPriorBeaconBlock(slot int) {
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	blockNumberKey := generateSlotNumberKey(slot)
-	utils.Logger.Infof("Check if prior Beacon block retrieved: %d", slot)
-	_, redisErr := b.redis.Get(blockNumberKey)
-	if redisErr != nil {
-		sideCar := engine.GetBlobSideCars(strconv.Itoa(slot))
-
-		for _, blob := range sideCar.Data {
-
-			b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
-		}
-		blockNumberKey := generateSlotNumberKey(slot)
-		err := b.redis.Set(blockNumberKey, true)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	select {
-	case <-ctx.Done():
-		stop()
-		fmt.Println("signal received: getPriorBeaconBlocks")
-		return
-	default:
-
-	}
-
-	utils.Logger.Info("exiting: getPriorBeaconBlocks External")
-
-}
-
-func generateSlotNumberKey(blockNumber int) string {
-	formatInt := strconv.Itoa(blockNumber)
-	return "S" + formatInt
 }

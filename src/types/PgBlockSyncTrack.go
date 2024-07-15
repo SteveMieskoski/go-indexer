@@ -10,5 +10,6 @@ type PgBlockSyncTrack struct {
 	Processed             bool
 	ReceiptsProcessed     bool
 	TransactionsProcessed bool
+	TransactionCount      int64
 	ContractsProcessed    bool
 }

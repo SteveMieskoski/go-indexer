@@ -3,6 +3,12 @@
 
 if ! hash docker 2>/dev/null; then
   echo "Docker Missing - Please install docker to run the development environment"
+  exit
+fi
+
+if ! pgrep docker 2>/dev/null; then
+  echo "Please start Docker before running this script. Docker Process Not Found"
+  exit
 fi
 
 #cd ./docker || exit

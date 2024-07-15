@@ -11,6 +11,7 @@ import (
 	"src/types"
 	"src/utils"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -19,11 +20,16 @@ type BlockRunner struct {
 	priorRetrievalInProgress bool
 	lastBlock                int
 	firstBlockSeen           int
+	produceDelay             time.Duration
 	producerFactory          *kafka.ProducerProvider
 	redis                    redisdb.RedisClient
 	blockRetriever           engine.BlockRetriever
 	blockSyncTrack           postgres.PgBlockSyncTrackRepository
 	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
+	transactionsToRetry      []types.Transaction
+	receiptsToRetry          []types.Receipt
+	blocksToRetry            []string
+	pgRetryTrack             postgres.PgTrackForToRetryRepository
 }
 
 func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
@@ -31,6 +37,8 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 	redisClient := redisdb.NewClient()
 	blockRetriever := engine.NewBlockRetriever(*redisClient)
 	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient())
+
+	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
 
 	createNewBlockSyncTrack := func() postgres.PgBlockSyncTrackRepository {
 		return postgres.NewBlockSyncTrackRepository(postgres.NewClient())
@@ -45,6 +53,11 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 		blockRetriever:           *blockRetriever,
 		blockSyncTrack:           blockSyncTracking,
 		newBlockSyncTrack:        createNewBlockSyncTrack,
+		produceDelay:             100,
+		transactionsToRetry:      []types.Transaction{},
+		receiptsToRetry:          []types.Receipt{},
+		blocksToRetry:            []string{},
+		pgRetryTrack:             pgRetryTrack,
 		//requestHeader: make(chan *bool, 1),
 	}
 }
@@ -106,15 +119,15 @@ func (r *BlockRunner) getCurrentBlock() {
 
 	blockRetriever := engine.NewBlockRetriever(r.redis)
 	blockGen := blockRetriever.BlockHeaderChannel()
-
+	var wg sync.WaitGroup
 	//fmt.Printf(lastBlock)
 	for latestBlock := range blockGen {
 		utils.Logger.Infof("Recieved latest block: %d", latestBlock.Number)
 
 		block := blockRetriever.GetBlock(int(latestBlock.Number))
-
+		wg.Add(1)
 		//r.producerFactory.Produce(types.BLOCK_TOPIC, block)
-		r.processBlock(block)
+		r.processBlock(block, &wg)
 	}
 
 	select {
@@ -127,8 +140,10 @@ func (r *BlockRunner) getCurrentBlock() {
 
 }
 
-func (r *BlockRunner) processBlock(block types.Block) {
+func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 
+	TransactionsProcessed := true
+	ReceiptsProcessed := true
 	completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 
 	if completed {
@@ -137,40 +152,94 @@ func (r *BlockRunner) processBlock(block types.Block) {
 		utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
 
 		for _, tx := range block.Transactions {
-			r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
+			completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
+			if !completedTx {
+				completed = false
+				TransactionsProcessed = false
+				//r.transactionsToRetry = append(r.transactionsToRetry, tx)
+				_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
+					DataType: "Transaction",
+					BlockId:  convertedBlock.Number,
+					RecordId: tx.Hash.String(),
+				})
+				if err != nil {
+					utils.Logger.Errorln(err)
+				}
+				utils.Logger.Infof("Error producing transaction for block %s transaction hash: %s", convertedBlock.Number, tx.Hash)
+				time.Sleep(r.produceDelay * time.Millisecond)
+			}
 		}
 
 		receipts, err := engine.GetBlockReceipts(convertedBlock.Hash)
 
 		if err != nil {
-			panic(err)
-			return
+			utils.Logger.Infof("Send on resultChan Err: %t\n", false)
+			//resultChan <- false
+			utils.Logger.Error(err)
+			wg.Done()
+			return false
 		}
 		for _, Receipt := range receipts {
-			r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
+			completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
+			if !completedR {
+				completed = false
+				ReceiptsProcessed = false
+				//r.receiptsToRetry = append(r.receiptsToRetry, *Receipt)
+				_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
+					DataType: "Receipt",
+					BlockId:  convertedBlock.Number,
+					RecordId: Receipt.TransactionHash.String(),
+				})
+				if err != nil {
+					utils.Logger.Errorln(err)
+				}
+				utils.Logger.Infof("Error producing receipt for block %s transaction hash: %s", convertedBlock.Number, Receipt.TransactionHash)
+				time.Sleep(r.produceDelay * time.Millisecond)
+			}
 		}
 
 		_, err = r.blockSyncTrack.GetByBlockNumber(int(block.Number)) //TODO: STOPPED HERE <<<<<<<<<<<<<<<<<<<<<<<<<<
 		blockEntry, err := r.blockSyncTrack.GetByBlockNumber(int(block.Number))
-		blockEntry.Processed = true
-		blockEntry.Retrieved = true
-		blockEntry.ReceiptsProcessed = true
-		blockEntry.TransactionsProcessed = true
-		_, err = r.blockSyncTrack.Update(*blockEntry)
+		if err != nil {
+			completed = false
+		}
+		if blockEntry != nil {
+			blockEntry.Processed = ReceiptsProcessed && TransactionsProcessed
+			blockEntry.Retrieved = true
+			blockEntry.ReceiptsProcessed = ReceiptsProcessed
+			blockEntry.TransactionsProcessed = TransactionsProcessed
+			_, err = r.blockSyncTrack.Update(*blockEntry)
+		} else {
+			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", block.Number)
+		}
 
 	} else {
-		utils.Logger.Infof("producerFactory.Produce FAILED")
+		utils.Logger.Infof("Error producing BLOCK %v", block.Number)
 		//go func() {
 		//	r.getPriorBlock(*blockRetriever, int(block.Number))
 		//}()
-
+		numb := strconv.Itoa(int(block.Number))
+		//r.blocksToRetry = append(r.blocksToRetry, numb)
+		_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
+			DataType: "Block",
+			BlockId:  numb,
+		})
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
 	}
+	println("WAIT DONE ==========================================")
+	wg.Done()
+	return completed
 }
 
 func (r *BlockRunner) getPriorBlocks() {
+
 	dbAccess := r.newBlockSyncTrack()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	//var wg sync.WaitGroup
 
 	Num, _ := r.redis.Get("blockNumberOnSyncStart")
 	blockNumberOnSyncStart, _ := strconv.Atoi(Num)
@@ -190,7 +259,8 @@ func (r *BlockRunner) getPriorBlocks() {
 	goodRun := true
 
 	for lastBlockRetrieved < blockNumberOnSyncStart {
-
+		var wg sync.WaitGroup
+		//ctx = context.WithValue(ctx, "backoff", false)
 		if !goodRun {
 			blocksPerBatch = 10
 		} else if blocksPerBatch < 50 {
@@ -209,6 +279,8 @@ func (r *BlockRunner) getPriorBlocks() {
 			goodRun = false
 			continue
 		}
+		println(len(batchResponse))
+		wg.Add(len(batchResponse))
 		for _, response := range batchResponse {
 			switch block := response.Result.(type) {
 			case *types.Block:
@@ -227,7 +299,17 @@ func (r *BlockRunner) getPriorBlocks() {
 					continue
 				}
 
-				go r.processBlock(*block)
+				go func() {
+					produceOk := r.processBlock(*block, &wg)
+					if produceOk {
+						if r.produceDelay >= 200 {
+							r.produceDelay = r.produceDelay - 100
+						}
+					} else {
+						r.produceDelay = r.produceDelay + 100
+					}
+				}()
+
 			}
 
 		}
@@ -240,10 +322,14 @@ func (r *BlockRunner) getPriorBlocks() {
 		default:
 		}
 
+		println("WAITING ===================================================")
+		wg.Wait()
 		lastBlockRetrieved = batchEndBlock + 1
-		time.Sleep(200 * time.Millisecond)
-
+		//time.Sleep(r.produceDelay * time.Millisecond)
+		//println("WAITING ===================================================")
+		//wg.Wait()
 	}
 
+	//wg.Wait()
 	utils.Logger.Info("exiting: getPriorBlock External")
 }

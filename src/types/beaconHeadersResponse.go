@@ -5,18 +5,6 @@ import (
 	protobufLocal "src/protobuf"
 )
 
-//type SignedBeaconBlockHeaderContainer struct {
-//	Header    *SignedBeaconBlockHeader `json:"header"`
-//	Root      string                   `json:"root"`
-//	Canonical bool                     `json:"canonical"`
-//}
-//
-//type GetBlockHeadersResponse struct {
-//	Data                []*SignedBeaconBlockHeaderContainer `json:"data"`
-//	ExecutionOptimistic bool                                `json:"execution_optimistic"`
-//	Finalized           bool                                `json:"finalized"`
-//}
-
 type BeaconHeadersResponse struct {
 	Data                []*HeaderResponseContainer `json:"data"`
 	ExecutionOptimistic bool                       `json:"execution_optimistic"`
@@ -55,8 +43,6 @@ func (s BeaconHeadersResponse) MongoFromGoType(blob BeaconHeadersResponse) Mongo
 
 	var data []*MongoHeaderResponseContainer
 	for _, block := range blob.Data {
-		//headerResponse := MongoHeaderResponseContainer{}
-		//json.Unmarshal(*block.Header, &headerResponse)
 		headerData := SignedBeaconBlockHeader{}.MongoFromGoType(*block.Header)
 		dat := MongoHeaderResponseContainer{
 			Header:    &headerData,
@@ -75,10 +61,10 @@ func (s BeaconHeadersResponse) MongoFromGoType(blob BeaconHeadersResponse) Mongo
 
 func (s BeaconHeadersResponse) ProtobufFromGoType(blob BeaconHeadersResponse) protobufLocal.BeaconHeaderResponse {
 
-	var data []*protobufLocal.BeaconHeaderResponse_Header
+	var data []*protobufLocal.BeaconHeader
 	for _, block := range blob.Data {
 		headerData := SignedBeaconBlockHeader{}.ProtobufFromGoType(*block.Header)
-		dat := protobufLocal.BeaconHeaderResponse_Header{
+		dat := protobufLocal.BeaconHeader{
 			Header:    &headerData,
 			Root:      block.Root,
 			Canonical: block.Canonical,
@@ -115,10 +101,10 @@ func (s BeaconHeadersResponse) MongoFromProtobufType(blob protobufLocal.BeaconHe
 
 func (s BeaconHeadersResponse) ProtobufFromMongoType(blob MongoBeaconHeadersResponse) *protobufLocal.BeaconHeaderResponse {
 
-	var data []*protobufLocal.BeaconHeaderResponse_Header
+	var data []*protobufLocal.BeaconHeader
 	for _, block := range blob.Data {
 		headerData := SignedBeaconBlockHeader{}.ProtobufFromMongoType(*block.Header)
-		dat := protobufLocal.BeaconHeaderResponse_Header{
+		dat := protobufLocal.BeaconHeader{
 			Header:    headerData,
 			Root:      block.Root,
 			Canonical: block.Canonical,

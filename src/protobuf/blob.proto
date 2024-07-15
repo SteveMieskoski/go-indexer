@@ -27,12 +27,14 @@ message BeaconBlockHeader {
 
 message BeaconHeaderResponse {
 
-  message Header {
-    SignedBeaconBlockHeader Header = 1;
-    string Root = 2;
-    bool Canonical = 3;
-  }
-  repeated Header Data = 1;
+
+  repeated BeaconHeader Data = 1;
   bool ExecutionOptimistic = 2;
   bool Finalized = 3;
+}
+
+message BeaconHeader {
+  SignedBeaconBlockHeader Header = 1;
+  string Root = 2;
+  bool Canonical = 3;
 }

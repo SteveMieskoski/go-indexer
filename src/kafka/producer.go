@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"src/types"
 	"src/utils"
+	"strconv"
 	"sync"
 	"syscall"
 )
@@ -64,6 +65,23 @@ func GenerateKafkaConfig() *sarama.Config {
 func NewProducerProvider(brokers []string, producerConfigurationProvider func() *sarama.Config) *ProducerProvider {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	broker := sarama.NewBroker("localhost:9092")
+	err := broker.Open(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	versionNum, _ := strconv.ParseInt(version, 10, 0)
+
+	_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
+		Version: int16(versionNum),
+		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC},
+	})
+	if err != nil {
+		return nil
+	}
+	// DeleteTopicsRequest
 
 	provider := &ProducerProvider{}
 	provider.ProducerProvider = func() sarama.AsyncProducer {
@@ -154,7 +172,6 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 		}
 		break
 	case types.Blob:
-		println("Blob")
 		pbBlock := types.Blob{}.ProtobufFromGoType(data)
 		blockToSend, err := proto.Marshal(&pbBlock)
 
@@ -197,6 +214,7 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 				continue
 			}
 		}
+		println("PRODUCER ERROR")
 		return false
 	}
 	return true

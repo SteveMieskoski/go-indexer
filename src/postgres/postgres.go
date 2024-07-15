@@ -27,7 +27,7 @@ func NewClient() *PostgresDB {
 	if err != nil {
 		panic("failed to connect database")
 	}
-	err = db.AutoMigrate(&types.Address{}, &types.PgBlockSyncTrack{})
+	err = db.AutoMigrate(&types.Address{}, &types.PgBlockSyncTrack{}, types.PgSlotSyncTrack{}, types.PgTrackForToRetry{})
 	if err != nil {
 		return nil
 	}
