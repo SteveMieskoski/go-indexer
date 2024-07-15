@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"gorm.io/gorm"
 	protobufLocal "src/protobuf"
 	base "src/utils"
 	"strconv"
@@ -59,8 +60,17 @@ type MongoBlock struct {
 	Number                string             `bson:"number" json:"number"`
 }
 
+type PgBlockNote struct {
+	gorm.Model
+	Hash      string `gorm:"uniqueIndex"`
+	Timestamp uint64
+	Number    string
+	retrieved bool
+}
+
 func (s Block) String() string {
-	bytes, _ := json.Marshal(s)
+	//bytes, _ := json.Marshal(s)
+	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }
 

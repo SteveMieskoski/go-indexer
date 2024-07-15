@@ -15,16 +15,17 @@ var brokers = []string{"localhost:9092"}
 
 func Run() {
 
-	producerFactory := kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig)
+	runs := NewBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
 
-	runs := NewBlockRunner(producerFactory)
-	beaconBlockRunner := NewBeaconBlockRunner(producerFactory)
-
+	//beaconBlockRunner.StartBeaconSync()
+	//
 	go func() {
-		beaconBlockRunner.getCurrentBeaconBlock()
+		beaconBlockRunner := NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
+		beaconBlockRunner.StartBeaconSync()
 	}()
 
-	runs.getCurrentBlock()
+	//runs.Demo()
+	runs.StartBlockSync()
 	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	//defer stop()
 	//

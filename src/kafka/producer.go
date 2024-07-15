@@ -97,6 +97,9 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 		return false
 	}
 
+	//t := reflect.TypeOf(block).Name()
+	//fmt.Printf("TypeOf %s: %v\n", topic, t)
+
 	switch data := block.(type) {
 
 	case types.Block:
@@ -151,7 +154,7 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 		}
 		break
 	case types.Blob:
-
+		println("Blob")
 		pbBlock := types.Blob{}.ProtobufFromGoType(data)
 		blockToSend, err := proto.Marshal(&pbBlock)
 

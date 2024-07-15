@@ -16,7 +16,7 @@ type DatabaseCoordinator interface {
 	Close()
 	ConvertToBlock(block protobuf2.Block) *types.MongoBlock
 	ConvertToReceipt(receipt protobuf2.Receipt) *types.MongoReceipt
-	ConvertToLog(logVal *protobuf2.Receipt_Log) *types.MongoLog
+	ConvertToLog(logVal *protobuf2.Log) *types.MongoLog
 	ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob
 	ConvertToTransaction(tx *protobuf2.Transaction) *types.MongoTransaction
 }
@@ -241,7 +241,7 @@ func (db *databaseCoordinator) ConvertToReceipt(receipt protobuf2.Receipt) *type
 	return types.Receipt{}.MongoFromProtobufType(receipt)
 }
 
-func (db *databaseCoordinator) ConvertToLog(logVal *protobuf2.Receipt_Log) *types.MongoLog {
+func (db *databaseCoordinator) ConvertToLog(logVal *protobuf2.Log) *types.MongoLog {
 	return types.Log{}.MongoFromProtobufType(*logVal)
 }
 

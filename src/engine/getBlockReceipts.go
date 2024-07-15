@@ -3,13 +3,15 @@ package engine
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
+	"os"
 	"os/signal"
 	"src/types"
 	"src/utils"
 	"syscall"
 )
 
-func GetBlockReceipts(url string, blockHash string) (types.Receipts, error) {
+func GetBlockReceipts(blockHash string) (types.Receipts, error) {
+	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url) // todo: move this external to the function (maybe)
 	defer client.Close()
 

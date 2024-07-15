@@ -76,7 +76,7 @@ func (s Receipt) ProtobufFromGoType(receipt Receipt) protobufLocal.Receipt {
 
 	receiptString := s.MongoFromGoType(receipt)
 
-	var convertedLogs []*protobufLocal.Receipt_Log
+	var convertedLogs []*protobufLocal.Log
 
 	for _, v := range receiptString.Logs {
 		convertedLogs = append(convertedLogs, Log{}.ProtobufFromMongoType(v))
@@ -128,7 +128,7 @@ func (s Receipt) MongoFromProtobufType(receipt protobufLocal.Receipt) *MongoRece
 
 func (s Receipt) ProtobufFromMongoType(receipt MongoReceipt) *protobufLocal.Receipt {
 
-	var convertedLogs []*protobufLocal.Receipt_Log
+	var convertedLogs []*protobufLocal.Log
 
 	for _, v := range receipt.Logs {
 		convertedLogs = append(convertedLogs, Log{}.ProtobufFromMongoType(v))

@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"src/engine"
 	"src/kafka"
+	"src/postgres"
 	"src/redisdb"
 	"src/types"
 	"src/utils"
@@ -20,11 +21,20 @@ type BlockRunner struct {
 	firstBlockSeen           int
 	producerFactory          *kafka.ProducerProvider
 	redis                    redisdb.RedisClient
+	blockRetriever           engine.BlockRetriever
+	blockSyncTrack           postgres.PgBlockSyncTrackRepository
+	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
 }
 
 func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 
 	redisClient := redisdb.NewClient()
+	blockRetriever := engine.NewBlockRetriever(*redisClient)
+	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient())
+
+	createNewBlockSyncTrack := func() postgres.PgBlockSyncTrackRepository {
+		return postgres.NewBlockSyncTrackRepository(postgres.NewClient())
+	}
 
 	return BlockRunner{
 		priorRetrievalInProgress: false,
@@ -32,238 +42,47 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 		firstBlockSeen:           0,
 		redis:                    *redisClient,
 		producerFactory:          producerFactory,
+		blockRetriever:           *blockRetriever,
+		blockSyncTrack:           blockSyncTracking,
+		newBlockSyncTrack:        createNewBlockSyncTrack,
 		//requestHeader: make(chan *bool, 1),
 	}
 }
 
-func (r *BlockRunner) getCurrentBlock() {
+func (r *BlockRunner) Demo() {
+
+	//blockNumber := r.blockRetriever.LatestBlock()
+	//println(blockNumber)
+	//parseInt, err := strconv.ParseInt(blockNumber[2:], 16, 64)
+	//println(parseInt)
+	//if err != nil {
+	//	return
+	//}
+
+	//blocks := r.blockRetriever.GetBlockBatch(10, 20)
+	//
+	//for _, block := range blocks {
+	//	switch t := block.Result.(type) {
+	//	case *types.Block:
+	//		println(t.Number)
+	//	}
+	//	//bytes, _ := json.MarshalIndent(block.Result, "", "   ")
+	//	//println(string(bytes))
+	//}
+}
+
+func (r *BlockRunner) StartBlockSync() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	blockRetrievers := engine.NewBlockRetriever(r.redis)
 
 	fmt.Printf("producer ready: %t\n", r.producerFactory.Connected)
-	blockGen := blockRetrievers.GetBlocks()
 
-	lastKnownBlock, err := r.redis.Get("latestBlock")
-	databasePopulated := true
+	blockNumber := r.blockRetriever.LatestBlock()
+
+	err := r.redis.Set("blockNumberOnSyncStart", blockNumber)
 	if err != nil {
-		databasePopulated = false
-	} else {
-		r.lastBlock, _ = strconv.Atoi(lastKnownBlock)
-	}
-	//fmt.Printf(lastBlock)
-	for ablock := range blockGen {
-		utils.Logger.Infof("latest block: %d", ablock.Number)
-
-		block := blockRetrievers.GetBlock(int(ablock.Number))
-
-		formatBlockNumberInt := strconv.Itoa(int(block.Number))
-		err := r.redis.Set("latestBlock", formatBlockNumberInt)
-		if err != nil {
-			panic(err)
-		}
-		blkNmKey := generateBlockNumberKey(int(block.Number))
-		err = r.redis.Set(blkNmKey, true)
-		if err != nil {
-			return
-		}
-
-		if int(block.Number) > r.lastBlock {
-			// todo | set up a retry mechanism or
-			// todo | need a way to check (i.e. bloom filters on consumer side maybe) that no blocks were missed
-			completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
-
-			if completed {
-				err := r.redis.Set("missingBlock", int(block.Number))
-				if err != nil {
-					utils.Logger.Errorf("failed to set missing block: %v", err)
-				}
-
-				convertedBlock := types.Block{}.MongoFromGoType(block)
-
-				utils.Logger.Infof("Transactions In Current Block: %d", len(convertedBlock.Transactions))
-
-				go func(blockHash string) { // TODO: make sure to clean up goroutine (i.e. connections)
-					receipts, err := engine.GetBlockReceipts("http://localhost:8545", blockHash)
-					if err != nil {
-						panic(err)
-						return
-					}
-					for _, Receipt := range receipts {
-						r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
-					}
-				}(convertedBlock.Hash)
-
-				go func(transactions []types.Transaction) {
-					for _, tx := range transactions {
-						r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
-					}
-				}(block.Transactions)
-
-				r.lastBlock = int(block.Number)
-			} else {
-				go func() {
-					r.getPriorBlock(*blockRetrievers, int(block.Number))
-				}()
-
-			}
-
-		}
-
-		//utils.Logger.Infof("PRIOR RETRIEVAL STARTED: %t \n", r.priorRetrievalInProgress)
-
-		if !r.priorRetrievalInProgress && block.Number > 1 {
-			// todo Need to scan redis to find the last old block retrieved
-			if !databasePopulated {
-				r.firstBlockSeen = int(block.Number)
-			} else {
-				r.firstBlockSeen = int(block.Number)
-			}
-
-			r.priorRetrievalInProgress = true
-			go func() {
-				r.getPriorBlocks(*blockRetrievers)
-			}()
-
-		}
-
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received")
-			return
-		default:
-		}
-	}
-
-}
-
-func (r *BlockRunner) getPriorBlocks(blockRetriever engine.BlockRetriever) {
-
-	producerFactory := kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	//blockRetriever.GetBlock(BlockNumToGetChan)
-	lastBlock := r.firstBlockSeen
-	utils.Logger.Infof("latest block known: %d", lastBlock)
-	lastBlockRetrieved := 0
-	completed := true
-
-	for lastBlockRetrieved < r.firstBlockSeen {
-		blockNumberKey := generateBlockNumberKey(lastBlockRetrieved)
-		utils.Logger.Infof("Check if prior block retrieved: %s", blockNumberKey)
-		_, err := r.redis.Get(blockNumberKey)
-		if err != nil {
-			utils.Logger.Infof("Prior block needed: %s", blockNumberKey)
-			//BlockNumToGetChan <- i
-			block := blockRetriever.GetBlock(lastBlockRetrieved)
-
-			completed = producerFactory.Produce(types.BLOCK_TOPIC, block)
-			if completed {
-				convertedBlock := types.Block{}.MongoFromGoType(block)
-				utils.Logger.Infof("Transactions In Past Block: %d", len(convertedBlock.Transactions))
-
-				go func(blockHash string) { // TODO: make sure to clean up goroutine (i.e. connections)
-					receipts, err := engine.GetBlockReceipts("http://localhost:8545", blockHash)
-					if err != nil {
-						panic(err)
-						return
-					}
-					for _, Receipt := range receipts {
-						producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
-					}
-				}(convertedBlock.Hash)
-
-				go func(transactions []types.Transaction) {
-					for _, tx := range transactions {
-						producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
-					}
-				}(block.Transactions)
-
-				//	Dangerously assume save did not fail
-				err = r.redis.Set(blockNumberKey, strconv.Itoa(lastBlockRetrieved))
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			stop()
-			fmt.Println("signal received")
-			return
-		default:
-		}
-
-		if completed {
-			utils.Logger.Infof("Prior block %d ingested", lastBlockRetrieved)
-			lastBlockRetrieved++
-		} else {
-			utils.Logger.Infof("Prior block %d ingestion failed", lastBlockRetrieved)
-			time.Sleep(300 * time.Millisecond)
-		}
-		time.Sleep(100 * time.Millisecond)
-
-	}
-
-	utils.Logger.Info("exiting: getPriorBlock External")
-}
-
-func (r *BlockRunner) getPriorBlock(blockRetriever engine.BlockRetriever, blockNumber int) {
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	time.Sleep(50 * time.Millisecond)
-	completed := true
-
-	blockNumberKey := generateBlockNumberKey(blockNumber)
-	utils.Logger.Infof("Check if prior block retrieved: %s", blockNumberKey)
-	_, err := r.redis.Get(blockNumberKey)
-	if err != nil {
-		utils.Logger.Infof("Prior block needed: %s", blockNumberKey)
-		//BlockNumToGetChan <- i
-		block := blockRetriever.GetBlock(blockNumber)
-
-		completed = r.producerFactory.Produce(types.BLOCK_TOPIC, block)
-		if completed {
-			convertedBlock := types.Block{}.MongoFromGoType(block)
-			utils.Logger.Infof("Transactions In Past Block: %d", len(convertedBlock.Transactions))
-
-			go func(blockHash string) { // TODO: make sure to clean up goroutine (i.e. connections)
-				receipts, err := engine.GetBlockReceipts("http://localhost:8545", blockHash)
-				if err != nil {
-					panic(err)
-					return
-				}
-				for _, Receipt := range receipts {
-					r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
-				}
-			}(convertedBlock.Hash)
-
-			go func(transactions []types.Transaction) {
-				for _, tx := range transactions {
-					r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
-				}
-			}(block.Transactions)
-
-			//	Dangerously assume save did not fail
-			err = r.redis.Set(blockNumberKey, strconv.Itoa(blockNumber))
-			if err != nil {
-				panic(err)
-			}
-
-			_, err := r.redis.Del("missingBlock")
-			if err != nil {
-				utils.Logger.Errorf("missing block reset failed: %v", err)
-			}
-		}
-
+		return
 	}
 
 	select {
@@ -274,14 +93,157 @@ func (r *BlockRunner) getPriorBlock(blockRetriever engine.BlockRetriever, blockN
 	default:
 	}
 
-	if completed {
-		utils.Logger.Infof("Prior block %d ingested", blockNumber)
-	}
-
-	utils.Logger.Info("exiting: getPriorBlock External: For single block")
+	go r.getPriorBlocks()
+	r.getCurrentBlock()
 }
 
-func generateBlockNumberKey(blockNumber int) string {
-	formatInt := strconv.Itoa(blockNumber)
-	return "B" + formatInt
+func (r *BlockRunner) getCurrentBlock() {
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	fmt.Printf("producer ready: %t\n", r.producerFactory.Connected)
+
+	blockRetriever := engine.NewBlockRetriever(r.redis)
+	blockGen := blockRetriever.BlockHeaderChannel()
+
+	//fmt.Printf(lastBlock)
+	for latestBlock := range blockGen {
+		utils.Logger.Infof("Recieved latest block: %d", latestBlock.Number)
+
+		block := blockRetriever.GetBlock(int(latestBlock.Number))
+
+		//r.producerFactory.Produce(types.BLOCK_TOPIC, block)
+		r.processBlock(block)
+	}
+
+	select {
+	case <-ctx.Done():
+		stop()
+		fmt.Println("signal received")
+		return
+	default:
+	}
+
+}
+
+func (r *BlockRunner) processBlock(block types.Block) {
+
+	completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
+
+	if completed {
+		convertedBlock := types.Block{}.MongoFromGoType(block)
+
+		utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
+
+		for _, tx := range block.Transactions {
+			r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
+		}
+
+		receipts, err := engine.GetBlockReceipts(convertedBlock.Hash)
+
+		if err != nil {
+			panic(err)
+			return
+		}
+		for _, Receipt := range receipts {
+			r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
+		}
+
+		_, err = r.blockSyncTrack.GetByBlockNumber(int(block.Number)) //TODO: STOPPED HERE <<<<<<<<<<<<<<<<<<<<<<<<<<
+		blockEntry, err := r.blockSyncTrack.GetByBlockNumber(int(block.Number))
+		blockEntry.Processed = true
+		blockEntry.Retrieved = true
+		blockEntry.ReceiptsProcessed = true
+		blockEntry.TransactionsProcessed = true
+		_, err = r.blockSyncTrack.Update(*blockEntry)
+
+	} else {
+		utils.Logger.Infof("producerFactory.Produce FAILED")
+		//go func() {
+		//	r.getPriorBlock(*blockRetriever, int(block.Number))
+		//}()
+
+	}
+}
+
+func (r *BlockRunner) getPriorBlocks() {
+	dbAccess := r.newBlockSyncTrack()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	Num, _ := r.redis.Get("blockNumberOnSyncStart")
+	blockNumberOnSyncStart, _ := strconv.Atoi(Num)
+
+	lastBlockRetrieved := 0
+	val, err := r.redis.Get("lastPriorBlockRetrieved")
+	if err != nil {
+		err := r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
+		if err != nil {
+			return
+		}
+	} else {
+		lastBlockRetrieved, _ = strconv.Atoi(val)
+	}
+
+	blocksPerBatch := 10
+	goodRun := true
+
+	for lastBlockRetrieved < blockNumberOnSyncStart {
+
+		if !goodRun {
+			blocksPerBatch = 10
+		} else if blocksPerBatch < 50 {
+			blocksPerBatch = blocksPerBatch + 10
+		}
+
+		batchEndBlock := lastBlockRetrieved + blocksPerBatch
+
+		if batchEndBlock >= blockNumberOnSyncStart {
+			batchEndBlock = blockNumberOnSyncStart
+		}
+
+		batchResponse, err := r.blockRetriever.GetBlockBatch(lastBlockRetrieved, batchEndBlock)
+
+		if err != nil {
+			goodRun = false
+			continue
+		}
+		for _, response := range batchResponse {
+			switch block := response.Result.(type) {
+			case *types.Block:
+				_, err := dbAccess.Add(types.PgBlockSyncTrack{
+					Number:                int64(block.Number),
+					Retrieved:             false,
+					Processed:             false,
+					ReceiptsProcessed:     false,
+					TransactionsProcessed: false,
+					ContractsProcessed:    false,
+				})
+
+				if err != nil {
+					// need to monitor to reduce batch size if db gets too slow
+					// add error log here
+					continue
+				}
+
+				go r.processBlock(*block)
+			}
+
+		}
+
+		select {
+		case <-ctx.Done():
+			stop()
+			fmt.Println("signal received")
+			return
+		default:
+		}
+
+		lastBlockRetrieved = batchEndBlock + 1
+		time.Sleep(200 * time.Millisecond)
+
+	}
+
+	utils.Logger.Info("exiting: getPriorBlock External")
 }
