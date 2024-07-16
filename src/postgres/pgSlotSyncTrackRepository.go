@@ -1,23 +1,23 @@
 package postgres
 
 import (
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"context"
+	"database/sql"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"src/types"
+	"src/utils"
 	"strconv"
 )
 
 type PgSlotSyncTrackRepository interface {
 	Add(appDoc types.PgSlotSyncTrack) (string, error)
-	List(count int) ([]*types.PgSlotSyncTrack, error)
-	GetById(oId string) (*types.PgSlotSyncTrack, error)
 	GetBySlotNumber(oId int) (*types.PgSlotSyncTrack, error)
 	Update(appDoc types.PgSlotSyncTrack) (*types.PgSlotSyncTrack, error)
 	Delete(oId string) (int64, error)
 }
 
 type pgSlotSyncTrackRepository struct {
-	client       *gorm.DB
+	client       *pgxpool.Pool
 	indicesExist bool
 }
 
@@ -27,55 +27,68 @@ func NewSlotSyncTrackRepository(client *PostgresDB) PgSlotSyncTrackRepository {
 
 func (a *pgSlotSyncTrackRepository) Add(appDoc types.PgSlotSyncTrack) (string, error) {
 
-	result := a.client.Clauses(clause.OnConflict{DoNothing: true}).Create(&appDoc)
-
-	if result.Error != nil {
-		return "", result.Error
+	_, err := a.client.Exec(context.Background(),
+		`insert into pg_slot_sync_tracks ("Hash", "Slot", "Retrieved", "Processed", "BlobsProcessed", "BlobCount")
+values ($1, $2, $3, $4, $5, $6);`, appDoc.Hash, appDoc.Slot, appDoc.Retrieved, appDoc.Processed, appDoc.BlobsProcessed, appDoc.BlobCount)
+	if err != nil {
+		utils.Logger.Errorln(err)
 	}
 
-	return strconv.Itoa(int(appDoc.ID)), nil
-}
-
-func (a *pgSlotSyncTrackRepository) List(count int) ([]*types.PgSlotSyncTrack, error) {
-
-	var blocks []*types.PgSlotSyncTrack
-	result := a.client.Find(&blocks)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return blocks, nil
-}
-
-func (a *pgSlotSyncTrackRepository) GetById(id string) (*types.PgSlotSyncTrack, error) {
-
-	var block *types.PgSlotSyncTrack
-
-	a.client.First(&block, id)
-
-	return block, nil
+	return strconv.Itoa(int(appDoc.Id)), nil
 }
 
 func (a *pgSlotSyncTrackRepository) GetBySlotNumber(num int) (*types.PgSlotSyncTrack, error) {
 
-	var block *types.PgSlotSyncTrack
+	var block types.PgSlotSyncTrack
 
-	a.client.Where("Number <> ?", num).Find(&block)
+	err := a.client.QueryRow(context.Background(),
+		`select * from pg_slot_sync_tracks where "Slot" = $1;`, num).Scan(&block.Id, &block.CreatedAt, &block.UpdatedAt, &block.Hash, &block.Slot, &block.Retrieved, &block.Processed, &block.BlobsProcessed, &block.BlobCount)
 
-	return block, nil
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// there were no rows, but otherwise no error occurred
+		} else {
+			panic(err)
+
+		}
+	}
+
+	return &block, nil
 }
 
 func (a *pgSlotSyncTrackRepository) Update(appDoc types.PgSlotSyncTrack) (*types.PgSlotSyncTrack, error) {
 
-	a.client.Save(appDoc)
+	//var block *types.PgSlotSyncTrack
+
+	var updateString = `
+		update pg_block_sync_tracks 
+		set "Retrieved" = $1, "Processed" = $2, "BlobsProcessed" = $3
+		where "Slot" = $4;`
+
+	_, err := a.client.Exec(context.Background(), updateString, appDoc.Retrieved, appDoc.Processed,
+		appDoc.BlobsProcessed, appDoc.Slot)
+	//blocks, err := pgx.CollectRows(rows, pgx.RowToStructByName[types.PgSlotSyncTrack])
+	//println(len(block))
+	//return blocks, nil
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// there were no rows, but otherwise no error occurred
+		} else {
+			panic(err)
+
+		}
+	}
 
 	return &appDoc, nil
 }
 
 func (a *pgSlotSyncTrackRepository) Delete(id string) (int64, error) {
 
-	a.client.Delete(&types.PgSlotSyncTrack{}, id)
+	_, err := a.client.Exec(context.Background(),
+		`delete from pg_block_sync_tracks where "Id" = $1;`, id)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
 
 	return 0, nil
 }

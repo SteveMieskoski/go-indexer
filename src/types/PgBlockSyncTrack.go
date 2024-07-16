@@ -1,11 +1,13 @@
 package types
 
-import "gorm.io/gorm"
+import "time"
 
 type PgBlockSyncTrack struct {
-	gorm.Model
+	Id                    uint
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 	Hash                  string
-	Number                int64 `gorm:"uniqueIndex"`
+	Number                int64
 	Retrieved             bool
 	Processed             bool
 	ReceiptsProcessed     bool

@@ -1,10 +1,14 @@
 package types
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
 type PgTrackForToRetry struct {
-	gorm.Model
-	DataType string
-	BlockId  string
-	RecordId string
+	Id        uint
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DataType  string
+	BlockId   string
+	RecordId  string
 }

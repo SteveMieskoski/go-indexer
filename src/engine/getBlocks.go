@@ -196,3 +196,53 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, nil
 }
+
+func (b BlockRetriever) GetTransaction(txHash string) types.Transaction {
+	// Connect the client.
+	url := os.Getenv("WS_RPC_URL")
+	client, _ := rpc.Dial(url)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer close(sigs)
+
+	// Ensure that subch receives the latest block.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// The connection is established now.
+	// Update the channel with the current block.
+	var lastBlock types.Transaction
+	err := client.CallContext(ctx, &lastBlock, "eth_getTransactionByHash", txHash)
+	if err != nil {
+		utils.Logger.Error("can't get transaction:", err)
+	}
+
+	utils.Logger.Infof("retrieved transaction %s", txHash)
+	return lastBlock
+}
+
+func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
+	// Connect the client.
+	url := os.Getenv("WS_RPC_URL")
+	client, _ := rpc.Dial(url)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer close(sigs)
+
+	// Ensure that subch receives the latest block.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// The connection is established now.
+	// Update the channel with the current block.
+	var lastBlock types.Receipt
+	err := client.CallContext(ctx, &lastBlock, "eth_getTransactionReceipt", txHash)
+	if err != nil {
+		utils.Logger.Error("can't get receipt:", err)
+	}
+
+	utils.Logger.Infof("retrieved receipt %s", txHash)
+	return lastBlock
+}

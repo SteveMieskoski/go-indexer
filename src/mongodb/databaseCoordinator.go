@@ -226,7 +226,7 @@ func (db *databaseCoordinator) monitorAddressChannel() {
 	for address := range db.addressChan {
 		println(address)
 		println("Received address")
-		_, err := db.AddressRepository.Add(*address, context.Background())
+		_, err := db.AddressRepository.Add(*address)
 		if err != nil {
 			return
 		}

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"gorm.io/gorm"
+	"time"
 )
 
 type RawAddress struct {
@@ -12,15 +12,17 @@ type RawAddress struct {
 }
 
 type Address struct {
-	gorm.Model
-	Address    string `gorm:"uniqueIndex"`
+	Id         uint
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Address    string
 	Nonce      string
 	IsContract bool
 	Balance    int64
 }
 
-type MethodSignature struct {
-	gorm.Model
-	signature       string
-	contractAddress string
-}
+//type MethodSignature struct {
+//	gorm.Model
+//	signature       string
+//	contractAddress string
+//}

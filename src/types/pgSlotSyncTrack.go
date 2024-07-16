@@ -1,11 +1,13 @@
 package types
 
-import "gorm.io/gorm"
+import "time"
 
 type PgSlotSyncTrack struct {
-	gorm.Model
+	Id             uint
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 	Hash           string
-	Slot           int64 `gorm:"uniqueIndex"`
+	Slot           int64
 	Retrieved      bool
 	Processed      bool
 	BlobsProcessed bool

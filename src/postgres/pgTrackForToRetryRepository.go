@@ -1,23 +1,22 @@
 package postgres
 
 import (
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"context"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"src/types"
+	"src/utils"
 	"strconv"
 )
 
 type PgTrackForToRetryRepository interface {
 	Add(appDoc types.PgTrackForToRetry) (string, error)
-	List(count int) ([]*types.PgTrackForToRetry, error)
-	GetById(oId string) (*types.PgTrackForToRetry, error)
-	GetBySlotNumber(oId int) (*types.PgTrackForToRetry, error)
-	Update(appDoc types.PgTrackForToRetry) (*types.PgTrackForToRetry, error)
-	Delete(oId string) (int64, error)
+	GetByDataType(dt string) ([]types.PgTrackForToRetry, error)
+	Delete(oId uint) (int64, error)
 }
 
 type pgTrackForToRetryRepository struct {
-	client       *gorm.DB
+	client       *pgxpool.Pool
 	indicesExist bool
 }
 
@@ -27,55 +26,35 @@ func NewTrackForToRetryRepository(client *PostgresDB) PgTrackForToRetryRepositor
 
 func (a *pgTrackForToRetryRepository) Add(appDoc types.PgTrackForToRetry) (string, error) {
 
-	result := a.client.Clauses(clause.OnConflict{DoNothing: true}).Create(&appDoc)
-
-	if result.Error != nil {
-		return "", result.Error
+	_, err := a.client.Exec(context.Background(),
+		`insert into pg_track_for_to_retries ("DataType", "BlockId", "RecordId")
+			values ($1, $2, $3);`, appDoc.DataType, appDoc.BlockId, appDoc.RecordId)
+	if err != nil {
+		utils.Logger.Errorln(err)
 	}
 
-	return strconv.Itoa(int(appDoc.ID)), nil
+	return strconv.Itoa(int(appDoc.Id)), nil
 }
 
-func (a *pgTrackForToRetryRepository) List(count int) ([]*types.PgTrackForToRetry, error) {
+func (a *pgTrackForToRetryRepository) GetByDataType(dt string) ([]types.PgTrackForToRetry, error) {
 
-	var blocks []*types.PgTrackForToRetry
-	result := a.client.Find(&blocks)
+	println(dt)
 
-	if result.Error != nil {
-		return nil, result.Error
+	rows, err := a.client.Query(context.Background(),
+		`select * from pg_track_for_to_retries where "DataType" = $1;`, dt)
+	blocks, err := pgx.CollectRows(rows, pgx.RowToStructByName[types.PgTrackForToRetry])
+	if err != nil {
+		utils.Logger.Errorln(err)
 	}
-
 	return blocks, nil
 }
 
-func (a *pgTrackForToRetryRepository) GetById(id string) (*types.PgTrackForToRetry, error) {
+func (a *pgTrackForToRetryRepository) Delete(id uint) (int64, error) {
 
-	var block *types.PgTrackForToRetry
-
-	a.client.First(&block, id)
-
-	return block, nil
-}
-
-func (a *pgTrackForToRetryRepository) GetBySlotNumber(num int) (*types.PgTrackForToRetry, error) {
-
-	var block *types.PgTrackForToRetry
-
-	a.client.Where("Number <> ?", num).Find(&block)
-
-	return block, nil
-}
-
-func (a *pgTrackForToRetryRepository) Update(appDoc types.PgTrackForToRetry) (*types.PgTrackForToRetry, error) {
-
-	a.client.Save(appDoc)
-
-	return &appDoc, nil
-}
-
-func (a *pgTrackForToRetryRepository) Delete(id string) (int64, error) {
-
-	a.client.Delete(&types.PgTrackForToRetry{}, id)
-
+	_, err := a.client.Exec(context.Background(),
+		`delete from pg_track_for_to_retries where "Id" = $1;`, id)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
 	return 0, nil
 }

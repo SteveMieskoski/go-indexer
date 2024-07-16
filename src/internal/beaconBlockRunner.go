@@ -25,7 +25,6 @@ type BeaconBlockRunner struct {
 	pgSlotSyncTrack          postgres.PgSlotSyncTrackRepository
 	pgRetryTrack             postgres.PgTrackForToRetryRepository
 	produceDelay             time.Duration
-	blobsToRetry             map[string][]string
 }
 
 func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRunner {
@@ -42,7 +41,6 @@ func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRu
 		redis:                    *redisClient,
 		pgSlotSyncTrack:          pgSlotSyncTrack,
 		produceDelay:             100,
-		blobsToRetry:             make(map[string][]string),
 		pgRetryTrack:             pgRetryTrack,
 	}
 }
@@ -82,9 +80,6 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	//resultChan := make(chan bool)
-	//defer close(resultChan)
-
 	fmt.Printf("producer ready: %t\n", b.producerFactory.Connected)
 
 	blockGen := engine.BeaconHeader()
@@ -120,30 +115,31 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 	}
 }
 
-func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.SidecarsResponse, wg *sync.WaitGroup) {
+func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.SidecarsResponse, wg *sync.WaitGroup) bool {
+
+	completedOk := true
 
 	for _, blob := range sideCar.Data {
 		completed := b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		if !completed {
+			if completedOk {
+				completedOk = false
+			}
 			utils.Logger.Errorf("Blob Error for Blob index: %s, slot number: %s", blob.Index, slot)
-			//b.blobsToRetry[slot] = append(b.blobsToRetry[slot], blob.Index)
+
 			_, err := b.pgRetryTrack.Add(types.PgTrackForToRetry{
-				DataType: "Blob",
+				DataType: types.BLOB_TOPIC,
 				BlockId:  slot,
 				RecordId: blob.Index,
 			})
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
-			//err := b.redis.Set("BlobError_"+blob.Index+"_"+slot, blob.Index)
-			//if err != nil {
-			//	utils.Logger.Errorf("Error Setting Blob Error in Redis for Blob index: %s, slot number: %s", blob.Index, slot)
-			//}
-			//b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		}
 	}
 
 	wg.Done()
+	return completedOk
 }
 
 func (b *BeaconBlockRunner) processBeaconBlock(block *types.BeaconHeadersResponse) {
@@ -171,10 +167,16 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 		lastSlotRetrieved, _ = strconv.Atoi(val)
 	}
 
+	// TODO: See TODO below
+	//slotsPerBatch := 10
+	//completedOk := true
+
 	for lastSlotRetrieved <= slotNumberOnSyncStart {
+
 		fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
 
 		var wg sync.WaitGroup
+
 		sideCar := engine.GetBlobSideCars(strconv.Itoa(lastSlotRetrieved))
 
 		wg.Add(1)
@@ -191,27 +193,74 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 		}
 		go b.processBlobSideCars(strconv.Itoa(lastSlotRetrieved), sideCar, &wg)
 
-		//select {
-		//case produceOk := <-resultChan:
-		//	if produceOk {
-		//		if b.produceDelay >= 200 {
-		//			b.produceDelay = b.produceDelay - 100
-		//		}
-		//	} else {
-		//		b.produceDelay = b.produceDelay + 100
-		//	}
-		//case <-ctx.Done():
-		//	stop()
-		//	fmt.Println("signal received")
-		//	return
-		//default:
-		//}
-
 		lastSlotRetrieved = lastSlotRetrieved + 1
-		//time.Sleep(b.produceDelay * time.Millisecond)
-		println("WAITING ===================================================")
+
 		wg.Wait()
+
+		// TODO: Revisit sending a number of calls all at once, but need to sync or respond to the
+		// TODO: pace of the BlockRunner because when both are trying to commit to Kafka several fail
+		//batchEndSlot := lastSlotRetrieved + slotsPerBatch
+		//
+		//if batchEndSlot >= slotNumberOnSyncStart {
+		//	batchEndSlot = slotNumberOnSyncStart
+		//}
+		//
+		//fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
+		//
+		//var wg sync.WaitGroup
+		//
+		//for i := lastSlotRetrieved; i < batchEndSlot; i++ {
+		//
+		//	sideCar := engine.GetBlobSideCars(strconv.Itoa(i))
+		//
+		//	wg.Add(1)
+		//	_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
+		//		Slot:           int64(i),
+		//		Retrieved:      true,
+		//		Processed:      false,
+		//		BlobsProcessed: false,
+		//		BlobCount:      int64(len(sideCar.Data)),
+		//	})
+		//
+		//	if errr != nil {
+		//		utils.Logger.Errorln(errr)
+		//	}
+		//	go func() {
+		//		completedOk = b.processBlobSideCars(strconv.Itoa(i), sideCar, &wg)
+		//	}()
+		//
+		//	if !completedOk {
+		//		slotsPerBatch = 1
+		//	} else if slotsPerBatch < 5 {
+		//		slotsPerBatch = slotsPerBatch + 1
+		//	}
+		//}
+		//
+		//lastSlotRetrieved = batchEndSlot + 1
+		//
+		//wg.Wait()
 	}
 
 	utils.Logger.Info("exiting: getPriorSlot External")
+	b.RetryFailedRetrievals()
+}
+
+func (b *BeaconBlockRunner) RetryFailedRetrievals() {
+	utils.Logger.Info("RetryFailedRetrievals Beacon START")
+	blobsToRetry, _ := b.pgRetryTrack.GetByDataType(types.BLOB_TOPIC)
+	for _, blobRecord := range blobsToRetry {
+		sideCar := engine.GetBlobSideCars(blobRecord.BlockId)
+		for _, blob := range sideCar.Data {
+			if blob.Index == blobRecord.RecordId {
+				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blob)
+				if completed {
+					_, err := b.pgRetryTrack.Delete(blobRecord.Id)
+					if err != nil {
+						utils.Logger.Errorln(err)
+					}
+				}
+			}
+		}
+	}
+	utils.Logger.Info("RetryFailedRetrievals Beacon END")
 }

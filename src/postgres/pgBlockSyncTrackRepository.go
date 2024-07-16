@@ -1,23 +1,23 @@
 package postgres
 
 import (
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"context"
+	"database/sql"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"src/types"
+	"src/utils"
 	"strconv"
 )
 
 type PgBlockSyncTrackRepository interface {
 	Add(appDoc types.PgBlockSyncTrack) (string, error)
-	List(count int) ([]*types.PgBlockSyncTrack, error)
-	GetById(oId string) (*types.PgBlockSyncTrack, error)
 	GetByBlockNumber(oId int) (*types.PgBlockSyncTrack, error)
 	Update(appDoc types.PgBlockSyncTrack) (*types.PgBlockSyncTrack, error)
 	Delete(oId string) (int64, error)
 }
 
 type pgBlockSyncTrackRepository struct {
-	client       *gorm.DB
+	client       *pgxpool.Pool
 	indicesExist bool
 }
 
@@ -27,55 +27,76 @@ func NewBlockSyncTrackRepository(client *PostgresDB) PgBlockSyncTrackRepository 
 
 func (a *pgBlockSyncTrackRepository) Add(appDoc types.PgBlockSyncTrack) (string, error) {
 
-	result := a.client.Clauses(clause.OnConflict{DoNothing: true}).Create(&appDoc)
+	_, err := a.client.Exec(context.Background(),
+		`insert into pg_block_sync_tracks ("Hash", "Number", "Retrieved", "Processed",
+                                  "ReceiptsProcessed", "TransactionsProcessed", "TransactionCount", "ContractsProcessed")
+			 values ($1, $2, $3, $4, $5, $6, $7, $8);`,
+		appDoc.Hash, appDoc.Number, appDoc.Retrieved, appDoc.Processed,
+		appDoc.ReceiptsProcessed, appDoc.TransactionsProcessed,
+		appDoc.TransactionCount, appDoc.ContractsProcessed)
 
-	if result.Error != nil {
-		return "", result.Error
+	if err != nil {
+		panic(err)
 	}
 
-	return strconv.Itoa(int(appDoc.ID)), nil
-}
-
-func (a *pgBlockSyncTrackRepository) List(count int) ([]*types.PgBlockSyncTrack, error) {
-
-	var blocks []*types.PgBlockSyncTrack
-	result := a.client.Find(&blocks)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return blocks, nil
-}
-
-func (a *pgBlockSyncTrackRepository) GetById(id string) (*types.PgBlockSyncTrack, error) {
-
-	var block *types.PgBlockSyncTrack
-
-	a.client.First(&block, id)
-
-	return block, nil
+	return strconv.Itoa(int(appDoc.Id)), nil
 }
 
 func (a *pgBlockSyncTrackRepository) GetByBlockNumber(num int) (*types.PgBlockSyncTrack, error) {
 
-	var block *types.PgBlockSyncTrack
+	var block types.PgBlockSyncTrack
 
-	a.client.Where("Number <> ?", num).Find(&block)
+	err := a.client.QueryRow(context.Background(),
+		`select * from pg_block_sync_tracks where "Number" = $1;`, num).Scan(&block.Id, &block.CreatedAt,
+		&block.UpdatedAt, &block.Hash, &block.Number, &block.Retrieved, &block.Processed,
+		&block.ReceiptsProcessed, &block.TransactionsProcessed, &block.TransactionCount, &block.ContractsProcessed)
 
-	return block, nil
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// there were no rows, but otherwise no error occurred
+		} else {
+			panic(err)
+
+		}
+	}
+
+	return &block, nil
 }
 
 func (a *pgBlockSyncTrackRepository) Update(appDoc types.PgBlockSyncTrack) (*types.PgBlockSyncTrack, error) {
 
-	a.client.Save(appDoc)
+	//var block types.PgBlockSyncTrack
+
+	var updateString = `
+		update pg_block_sync_tracks 
+		set "Retrieved" = $1, "Processed" = $2, "ReceiptsProcessed" = $3, "TransactionsProcessed" = $4,
+    		"ContractsProcessed" = $5, "TransactionCount" = $6
+		where "Number" = $7;`
+
+	_, err := a.client.Exec(context.Background(), updateString,
+		appDoc.Retrieved, appDoc.Processed, appDoc.ReceiptsProcessed,
+		appDoc.TransactionsProcessed, appDoc.ContractsProcessed, appDoc.TransactionCount, appDoc.Number)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// there were no rows, but otherwise no error occurred
+		} else {
+			panic(err)
+
+		}
+	}
 
 	return &appDoc, nil
 }
 
 func (a *pgBlockSyncTrackRepository) Delete(id string) (int64, error) {
 
-	a.client.Delete(&types.PgBlockSyncTrack{}, id)
+	_, err := a.client.Exec(context.Background(),
+		`delete from pg_block_sync_tracks where "Id" = $1;`, id)
+
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
 
 	return 0, nil
 }
