@@ -114,6 +114,7 @@ func (r *BlockRunner) getCurrentBlock() {
 		if err != nil {
 			// need to monitor to reduce batch size if db gets too slow
 			// add error log here
+			utils.Logger.Errorln(err)
 			continue
 		}
 		wg.Add(1)
@@ -183,19 +184,13 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 			}
 		}
 
-		_, err = r.blockSyncTrack.GetByBlockNumber(int(block.Number))
-		blockEntry, err := r.blockSyncTrack.GetByBlockNumber(int(block.Number))
+		updateComplete, err := r.updateSyncRecord(int(block.Number), ReceiptsProcessed, TransactionsProcessed)
 		if err != nil {
-			completed = false
+			utils.Logger.Errorln(err)
 		}
-		if blockEntry != nil {
-			blockEntry.Processed = ReceiptsProcessed && TransactionsProcessed
-			blockEntry.Retrieved = true
-			blockEntry.ReceiptsProcessed = ReceiptsProcessed
-			blockEntry.TransactionsProcessed = TransactionsProcessed
-			_, err = r.blockSyncTrack.Update(*blockEntry)
-		} else {
-			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", block.Number)
+
+		if !updateComplete {
+			completed = false
 		}
 
 	} else {
@@ -274,6 +269,7 @@ func (r *BlockRunner) getPriorBlocks() {
 					ReceiptsProcessed:     false,
 					TransactionsProcessed: false,
 					ContractsProcessed:    false,
+					TransactionCount:      int64(len(block.Transactions)),
 				})
 
 				if err != nil {
@@ -318,18 +314,20 @@ func (r *BlockRunner) getPriorBlocks() {
 func (r *BlockRunner) RetryFailedRetrievals() {
 	utils.Logger.Info("RetryFailedRetrievals START")
 	blocksToRetry, _ := r.pgRetryTrack.GetByDataType(types.BLOCK_TOPIC)
-
+	var wg sync.WaitGroup
 	for _, tx := range blocksToRetry {
+		wg.Add(1)
 		bNum, _ := strconv.Atoi(tx.BlockId)
 		block := r.blockRetriever.GetBlock(bNum)
-
-		completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
+		completed := r.processBlock(block, &wg)
+		//completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 		if completed {
 			_, err := r.pgRetryTrack.Delete(tx.Id)
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
 		}
+		wg.Wait()
 	}
 
 	transactionsToRetry, _ := r.pgRetryTrack.GetByDataType(types.TRANSACTION_TOPIC)
@@ -339,8 +337,12 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 		transaction := r.blockRetriever.GetTransaction(tx.RecordId)
 		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, transaction)
 		if completedTx {
-			print(transaction.String())
-			_, err := r.pgRetryTrack.Delete(tx.Id)
+			bNum, _ := strconv.Atoi(tx.BlockId)
+			_, err := r.updateSyncTransactionsRecord(bNum, true)
+			if err != nil {
+				utils.Logger.Errorln(err)
+			}
+			_, err = r.pgRetryTrack.Delete(tx.Id)
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
@@ -350,16 +352,89 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	receiptsToRetry, _ := r.pgRetryTrack.GetByDataType(types.RECEIPT_TOPIC)
 
 	for _, receipt := range receiptsToRetry {
-		println(receipt.RecordId)
 		txReceipt := r.blockRetriever.GetTransactionReceipt(receipt.RecordId)
 		completedTx := r.producerFactory.Produce(types.RECEIPT_TOPIC, txReceipt)
 		if completedTx {
-			print(txReceipt.String())
-			_, err := r.pgRetryTrack.Delete(receipt.Id)
+			bNum, _ := strconv.Atoi(receipt.BlockId)
+			_, err := r.updateSyncReceiptsRecord(bNum, true)
+			if err != nil {
+				utils.Logger.Errorln(err)
+			}
+			_, err = r.pgRetryTrack.Delete(receipt.Id)
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
 		}
 	}
 	utils.Logger.Info("RetryFailedRetrievals END")
+}
+
+func (r *BlockRunner) updateSyncRecord(blockNumber int, ReceiptsProcessed bool, TransactionsProcessed bool) (bool, error) {
+	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
+	if err != nil {
+		utils.Logger.Errorln(err)
+		return false, err
+	}
+	if blockEntry != nil {
+		blockEntry.Processed = ReceiptsProcessed && TransactionsProcessed
+		blockEntry.Retrieved = true
+		blockEntry.ReceiptsProcessed = ReceiptsProcessed
+		blockEntry.TransactionsProcessed = TransactionsProcessed
+		_, err = r.blockSyncTrack.Update(*blockEntry)
+		if err != nil {
+			utils.Logger.Errorln(err)
+			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
+			return false, err
+		}
+	} else {
+		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
+	}
+
+	return true, nil
+}
+
+func (r *BlockRunner) updateSyncTransactionsRecord(blockNumber int, TransactionsProcessed bool) (bool, error) {
+	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
+	if err != nil {
+		utils.Logger.Errorln(err)
+		return false, err
+	}
+	if blockEntry != nil {
+		blockEntry.Processed = blockEntry.ReceiptsProcessed && TransactionsProcessed
+		blockEntry.Retrieved = true
+		blockEntry.TransactionsProcessed = TransactionsProcessed
+		_, err = r.blockSyncTrack.Update(*blockEntry)
+		if err != nil {
+			utils.Logger.Errorln(err)
+			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
+			return false, err
+		}
+	} else {
+		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
+	}
+
+	return true, nil
+}
+
+func (r *BlockRunner) updateSyncReceiptsRecord(blockNumber int, ReceiptsProcessed bool) (bool, error) {
+	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
+	if err != nil {
+		utils.Logger.Errorln(err)
+		return false, err
+	}
+	if blockEntry != nil {
+		blockEntry.Processed = ReceiptsProcessed && blockEntry.TransactionsProcessed
+		blockEntry.Retrieved = true
+		blockEntry.ReceiptsProcessed = ReceiptsProcessed
+		_, err = r.blockSyncTrack.Update(*blockEntry)
+		if err != nil {
+			utils.Logger.Errorln(err)
+			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
+			return false, err
+		}
+	} else {
+		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
+	}
+
+	return true, nil
 }
