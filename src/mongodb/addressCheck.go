@@ -19,15 +19,16 @@ func NewAddressChecker() CheckAddress {
 	if err != nil {
 		filter = bloom.NewWithEstimates(1000000, 0.01)
 		var buf bytes.Buffer
-		bytesWritten, err := filter.WriteTo(&buf)
+		_, err := filter.WriteTo(&buf)
 		if err != nil {
 			panic(err)
 		}
-		err = redisClient.Set("addressFilter", bytesWritten)
+		err = redisClient.Set("addressFilter", buf.String())
 		if err != nil {
 			panic(err)
 		}
 	} else {
+		filter = bloom.NewWithEstimates(1000000, 0.01)
 		buf := new(bytes.Buffer)
 		buf.WriteString(val)
 		_, err := filter.ReadFrom(buf)
@@ -35,8 +36,6 @@ func NewAddressChecker() CheckAddress {
 			panic(err)
 		}
 	}
-
-	//filter := bloom.NewWithEstimates(1000000, 0.01)
 
 	return CheckAddress{
 		redis:  *redisClient,
@@ -59,11 +58,11 @@ func (c *CheckAddress) Exist(address string) bool {
 
 func (c *CheckAddress) updateRedis() {
 	var buf bytes.Buffer
-	bytesWritten, err := c.filter.WriteTo(&buf)
+	_, err := c.filter.WriteTo(&buf)
 	if err != nil {
 		panic(err)
 	}
-	err = c.redis.Set("addressFilter", bytesWritten)
+	err = c.redis.Set("addressFilter", buf.String())
 	if err != nil {
 		panic(err)
 	}

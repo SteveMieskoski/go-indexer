@@ -68,11 +68,16 @@ func (m MongoInstance) MongoTest() {
 	app.Get("/transactions/address/:address", func(c *fiber.Ctx) error {
 		// get id by params
 		address := c.Params("address")
-
+		limit := 20
+		page := 1
 		println(address)
 		filter := bson.D{{Key: "from", Value: address}}
 
-		cursor, err := m.Db.Collection("receipts").Find(c.Context(), filter)
+		l := int64(limit)
+		skip := int64(page*limit - limit)
+		fOpt := options.FindOptions{Limit: &l, Skip: &skip}
+
+		cursor, err := m.Db.Collection("receipts").Find(c.Context(), filter, &fOpt)
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}

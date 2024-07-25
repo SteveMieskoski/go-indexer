@@ -23,7 +23,7 @@ type DatabaseCoordinator interface {
 
 type databaseCoordinator struct {
 	//ctx               context.Context
-	//redis
+	AddressChecker        CheckAddress
 	BlockRepository       BlockRepository
 	ReceiptRepository     ReceiptRepository
 	LogRepository         LogRepository
@@ -100,7 +100,10 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 	LogRepository := NewLogRepository(client3, logDbSettings)
 	BlobRepository := NewBlobRepository(client4, blobDbSettings)
 
+	AddressCheck := NewAddressChecker()
+
 	dbc := &databaseCoordinator{
+		AddressChecker:        AddressCheck,
 		BlockRepository:       BlockRepository,
 		ReceiptRepository:     ReceiptRepository,
 		LogRepository:         LogRepository,
@@ -187,8 +190,14 @@ func (db *databaseCoordinator) monitorBlockChannel() {
 
 func (db *databaseCoordinator) monitorReceiptChannel() {
 	for receipt := range db.receiptChan {
-		db.AddAddress() <- &types.Address{Address: receipt.From}
-		db.AddAddress() <- &types.Address{Address: receipt.To}
+		if !db.AddressChecker.Exist(receipt.From) {
+			db.AddAddress() <- &types.Address{Address: receipt.From}
+		}
+		if !db.AddressChecker.Exist(receipt.To) {
+			db.AddAddress() <- &types.Address{Address: receipt.To}
+		}
+
+		// indicates contract creation so, it wouldn't already exist
 		if receipt.ContractAddress != "0x0" {
 			db.AddAddress() <- &types.Address{Address: receipt.ContractAddress, IsContract: true}
 		}

@@ -28,7 +28,7 @@ type BeaconBlockRunner struct {
 
 func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRunner {
 
-	redisClient := redisdb.NewClient()
+	redisClient := redisdb.NewClient(2)
 	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient())
 	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
 
