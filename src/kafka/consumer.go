@@ -161,7 +161,7 @@ func NewMongoDbConsumer(topics []string) {
 	 */
 	config := sarama.NewConfig()
 	config.Version = version
-	config.Metadata.Timeout = 20 * time.Second
+	config.Metadata.Timeout = 30 * time.Second
 	config.ClientID = "Indexer"
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
@@ -229,6 +229,7 @@ func NewMongoDbConsumer(topics []string) {
 			if err != nil {
 				return
 			}
+			return
 		case <-sigusr1:
 			toggleConsumptionFlow(client, &consumptionIsPaused)
 		}
@@ -343,6 +344,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				consumer.DatabaseCoordinator.AddTransaction() <- consumer.DatabaseCoordinator.ConvertToTransaction(&tx)
 
 				utils.Logger.Infof("Message claimed: Tx Hash = %s, timestamp = %v, topic = %s", tx.Hash, message.Timestamp, message.Topic)
+
 			}
 
 			session.MarkMessage(message, "")

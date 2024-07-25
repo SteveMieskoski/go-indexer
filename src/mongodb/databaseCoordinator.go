@@ -23,6 +23,7 @@ type DatabaseCoordinator interface {
 
 type databaseCoordinator struct {
 	//ctx               context.Context
+	//redis
 	BlockRepository       BlockRepository
 	ReceiptRepository     ReceiptRepository
 	LogRepository         LogRepository
@@ -132,6 +133,10 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 
 	go func() {
 		dbc.monitorBlobChannel()
+	}()
+
+	go func() {
+		dbc.monitorTransactionChannel()
 	}()
 
 	return dbc, nil

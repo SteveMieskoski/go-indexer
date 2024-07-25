@@ -1,10 +1,9 @@
-package internal
+package engine
 
 import (
 	"context"
 	"fmt"
 	"os/signal"
-	"src/engine"
 	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
@@ -55,7 +54,7 @@ func (b *BeaconBlockRunner) StartBeaconSync() {
 
 	fmt.Printf("producer ready: %t\n", b.producerFactory.Connected)
 
-	bHeader := engine.GetBeaconHeader()
+	bHeader := GetBeaconHeader()
 	currentSlotString := bHeader.Data[0].Header.Message.Slot
 	err := b.redis.Set("BeaconSlotNumberOnSyncStart", currentSlotString)
 	if err != nil {
@@ -82,13 +81,13 @@ func (b *BeaconBlockRunner) getCurrentBeaconBlock() {
 
 	fmt.Printf("producer ready: %t\n", b.producerFactory.Connected)
 
-	blockGen := engine.BeaconHeader()
+	blockGen := BeaconHeader()
 
 	for latestBlock := range blockGen {
 		utils.Logger.Infof("Recieved latest Beacon block: %s", latestBlock.Slot)
 		var wg sync.WaitGroup
 
-		sideCar := engine.GetBlobSideCars(latestBlock.Slot)
+		sideCar := GetBlobSideCars(latestBlock.Slot)
 
 		slotNum, _ := strconv.Atoi(latestBlock.Slot)
 		_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
@@ -177,7 +176,7 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 
 		var wg sync.WaitGroup
 
-		sideCar := engine.GetBlobSideCars(strconv.Itoa(lastSlotRetrieved))
+		sideCar := GetBlobSideCars(strconv.Itoa(lastSlotRetrieved))
 
 		wg.Add(1)
 		_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
@@ -249,7 +248,7 @@ func (b *BeaconBlockRunner) RetryFailedRetrievals() {
 	utils.Logger.Info("RetryFailedRetrievals Beacon START")
 	blobsToRetry, _ := b.pgRetryTrack.GetByDataType(types.BLOB_TOPIC)
 	for _, blobRecord := range blobsToRetry {
-		sideCar := engine.GetBlobSideCars(blobRecord.BlockId)
+		sideCar := GetBlobSideCars(blobRecord.BlockId)
 		for _, blob := range sideCar.Data {
 			if blob.Index == blobRecord.RecordId {
 				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blob)

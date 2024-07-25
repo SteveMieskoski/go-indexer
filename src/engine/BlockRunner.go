@@ -1,10 +1,9 @@
-package internal
+package engine
 
 import (
 	"context"
 	"fmt"
 	"os/signal"
-	"src/engine"
 	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
@@ -23,7 +22,8 @@ type BlockRunner struct {
 	produceDelay             time.Duration
 	producerFactory          *kafka.ProducerProvider
 	redis                    redisdb.RedisClient
-	blockRetriever           engine.BlockRetriever
+	redisTrack               redisdb.RedisClient
+	blockRetriever           BlockRetriever
 	blockSyncTrack           postgres.PgBlockSyncTrackRepository
 	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
 	pgRetryTrack             postgres.PgTrackForToRetryRepository
@@ -31,8 +31,9 @@ type BlockRunner struct {
 
 func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 
-	redisClient := redisdb.NewClient()
-	blockRetriever := engine.NewBlockRetriever(*redisClient)
+	redisClient := redisdb.NewClient(1)
+	redisTrack := redisdb.NewClient(1)
+	blockRetriever := NewBlockRetriever(*redisClient)
 	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient())
 
 	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
@@ -46,6 +47,7 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 		lastBlock:                0,
 		firstBlockSeen:           0,
 		redis:                    *redisClient,
+		redisTrack:               *redisTrack,
 		producerFactory:          producerFactory,
 		blockRetriever:           *blockRetriever,
 		blockSyncTrack:           blockSyncTracking,
@@ -72,6 +74,10 @@ func (r *BlockRunner) StartBlockSync() {
 	if err != nil {
 		return
 	}
+	err = r.redis.Set("priorCurrentBlock", blockNumber)
+	if err != nil {
+		return
+	}
 
 	select {
 	case <-ctx.Done():
@@ -93,7 +99,7 @@ func (r *BlockRunner) getCurrentBlock() {
 
 	fmt.Printf("producer ready: %t\n", r.producerFactory.Connected)
 
-	blockRetriever := engine.NewBlockRetriever(r.redis)
+	blockRetriever := NewBlockRetriever(r.redis)
 	blockGen := blockRetriever.BlockHeaderChannel()
 	var wg sync.WaitGroup
 
@@ -119,6 +125,20 @@ func (r *BlockRunner) getCurrentBlock() {
 		}
 		wg.Add(1)
 		r.processBlock(block, &wg)
+
+		val, err := r.redis.Get("priorCurrentBlock")
+		if err != nil {
+			return
+		}
+		valNum, _ := strconv.Atoi(val)
+		if int(latestBlock.Number)-valNum > 1 {
+			go r.getPriorBlocksInRange(valNum+1, int(latestBlock.Number)-1)
+		}
+
+		err = r.redis.Set("priorCurrentBlock", block.Number)
+		if err != nil {
+			return
+		}
 	}
 
 	select {
@@ -159,7 +179,7 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 			}
 		}
 
-		receipts, err := engine.GetBlockReceipts(convertedBlock.Hash)
+		receipts, err := GetBlockReceipts(convertedBlock.Hash)
 
 		if err != nil {
 			utils.Logger.Error(err)
@@ -248,6 +268,95 @@ func (r *BlockRunner) getPriorBlocks() {
 
 		if batchEndBlock >= blockNumberOnSyncStart {
 			batchEndBlock = blockNumberOnSyncStart
+		}
+		fmt.Printf("Indexing prior blocs from %d to %d\n", lastBlockRetrieved, batchEndBlock)
+		batchResponse, err := r.blockRetriever.GetBlockBatch(lastBlockRetrieved, batchEndBlock)
+
+		if err != nil {
+			goodRun = false
+			continue
+		}
+
+		wg.Add(len(batchResponse))
+		for _, response := range batchResponse {
+			switch block := response.Result.(type) {
+			case *types.Block:
+				_, err := dbAccess.Add(types.PgBlockSyncTrack{
+					Number:                int64(block.Number),
+					Hash:                  block.Hash.String(),
+					Retrieved:             false,
+					Processed:             false,
+					ReceiptsProcessed:     false,
+					TransactionsProcessed: false,
+					ContractsProcessed:    false,
+					TransactionCount:      int64(len(block.Transactions)),
+				})
+
+				if err != nil {
+					// need to monitor to reduce batch size if db gets too slow
+					// add error log here
+					continue
+				}
+
+				go func() {
+					produceOk := r.processBlock(*block, &wg)
+					if produceOk {
+						if r.produceDelay >= 200 {
+							r.produceDelay = r.produceDelay - 100
+						}
+						goodRun = true
+					} else {
+						r.produceDelay = r.produceDelay + 100
+						goodRun = false
+					}
+				}()
+
+			}
+
+		}
+
+		select {
+		case <-ctx.Done():
+			stop()
+			fmt.Println("signal received")
+			return
+		default:
+		}
+
+		wg.Wait()
+		lastBlockRetrieved = batchEndBlock + 1
+	}
+
+	utils.Logger.Info("exiting: getPriorBlock External")
+	r.RetryFailedRetrievals()
+}
+
+// TODO: this should probably be used as the runner for getting past blocks
+func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
+
+	dbAccess := r.newBlockSyncTrack()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	lastBlockRetrieved := startBlock
+
+	blocksPerBatch := 10
+	goodRun := true
+
+	for lastBlockRetrieved < endBlock {
+
+		var wg sync.WaitGroup
+
+		if !goodRun {
+			blocksPerBatch = 10
+		} else if blocksPerBatch < 300 {
+			blocksPerBatch = blocksPerBatch + 10
+		}
+
+		batchEndBlock := lastBlockRetrieved + blocksPerBatch
+
+		if batchEndBlock >= endBlock {
+			batchEndBlock = endBlock
 		}
 		fmt.Printf("Indexing prior blocs from %d to %d\n", lastBlockRetrieved, batchEndBlock)
 		batchResponse, err := r.blockRetriever.GetBlockBatch(lastBlockRetrieved, batchEndBlock)

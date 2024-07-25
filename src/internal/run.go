@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"src/engine"
 	"src/kafka"
 	"src/mongodb"
 )
@@ -15,14 +16,14 @@ var brokers = []string{"localhost:9092"}
 
 func Run() {
 
-	runs := NewBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
+	runs := engine.NewBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
-	go func() {
-		beaconBlockRunner := NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
-		beaconBlockRunner.StartBeaconSync()
-	}()
+	//go func() {
+	//	beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
+	//	beaconBlockRunner.StartBeaconSync()
+	//}()
 
 	//runs.Demo()
 	runs.StartBlockSync()

@@ -11,6 +11,8 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
+	github.com/bits-and-blooms/bitset v1.13.0 // indirect
+	github.com/bits-and-blooms/bloom/v3 v3.7.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/bytedance/sonic v1.11.9 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
