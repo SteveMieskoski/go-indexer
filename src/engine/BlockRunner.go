@@ -184,7 +184,7 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 	if completed {
 		convertedBlock := types.Block{}.MongoFromGoType(block)
 
-		//utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
+		utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
 
 		TransactionsProcessed = r.processBlockTransactions(block, convertedBlock)
 
@@ -308,42 +308,8 @@ func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStr
 			}(addr, addressesToCheck.blockNumber)
 		}
 
-		//
-		//batch, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
-		//parseInt, err := strconv.ParseInt(str[2:], 16, 64)
-		//CollectedAddress := types.Address{
-		//	Address: addr,
-		//	LastSeen: blockNumber,
-		//	Balance:
-		//		}
 	}
 
-	//batch, blockNumber, err := r.blockRetriever.GetAddressDetailsBatch(setIterator, addressesToCheck.blockNumber)
-	//if err != nil {
-	//	utils.Logger.Errorln(err)
-	//}
-	//println("=============================")
-	//println(blockNumber)
-	//println(addressesToCheck.txCount)
-	//for _, addr := range batch {
-	//	fmt.Printf("%v\n", addr)
-	//	str := fmt.Sprintf("%v", addr.Result)
-	//	fmt.Printf("%v\n", str)
-	//	//strconv.ParseInt()
-	//	parseInt, err := strconv.ParseInt(str[2:], 16, 64)
-	//	if err != nil {
-	//		utils.Logger.Errorln(err)
-	//	}
-	//	str2 := fmt.Sprintf("%v", addr.Args[1])
-	//	parseInt2, err := strconv.ParseInt(str2[2:], 16, 64)
-	//	if err != nil {
-	//		utils.Logger.Errorln(err)
-	//	}
-	//	fmt.Printf("%v -> %d @ %v \n", addr.Args[0], parseInt, parseInt2)
-	//
-	//	//completedTx := r.producerFactory.Produce(types.ADDRESS_TOPIC, types.Address{Address: })
-	//
-	//}
 }
 
 func (r *BlockRunner) getPriorBlocks() {
@@ -362,7 +328,8 @@ func (r *BlockRunner) getPriorBlocks() {
 	if err != nil {
 		err := r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
 		if err != nil {
-			return
+			utils.Logger.Errorln(err)
+			//return
 		}
 	} else {
 		lastBlockRetrieved, _ = strconv.Atoi(val)
@@ -370,11 +337,11 @@ func (r *BlockRunner) getPriorBlocks() {
 
 	blocksPerBatch := 10
 	goodRun := true
-	duration := 0
+	//duration := 0
 
 	for lastBlockRetrieved < blockNumberOnSyncStart {
 
-		start := time.Now()
+		//start := time.Now()
 		var wg sync.WaitGroup
 
 		if !goodRun {
@@ -385,9 +352,9 @@ func (r *BlockRunner) getPriorBlocks() {
 			blocksPerBatch = blocksPerBatch + 1
 		}*/
 		// was getting errors, maybe from above, need to check with the mem error
-		if duration > 900000000 && blocksPerBatch > 20 {
-			blocksPerBatch = blocksPerBatch - 5
-		}
+		//if duration > 900000000 && blocksPerBatch > 20 {
+		//	blocksPerBatch = blocksPerBatch - 5
+		//}
 
 		batchEndBlock := lastBlockRetrieved + blocksPerBatch
 
@@ -449,8 +416,8 @@ func (r *BlockRunner) getPriorBlocks() {
 		}
 
 		wg.Wait()
-		duration = int(time.Since(start))
-		println(duration)
+		//duration = int(time.Since(start))
+		//println(duration)
 		lastBlockRetrieved = batchEndBlock + 1
 	}
 

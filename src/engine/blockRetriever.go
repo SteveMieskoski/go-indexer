@@ -176,6 +176,7 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 
 	var lastBlock []rpc.BatchElem
 
+	println(lastBlockToGet)
 	for i := firstBlockToGet; i < lastBlockToGet; i++ {
 		blockNumberToRetreive := strconv.FormatInt(int64(i), 16)
 		var block types.Block

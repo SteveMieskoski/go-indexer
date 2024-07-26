@@ -127,3 +127,93 @@ created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 3599
 
 
 ==============================================================================================================
+
+PRODUCER ERROR
+{"level":"error","ts":1721978627.6510267,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processBlockReceipts\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:263\nsrc/engine.(*BlockRunner).processBlock\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:191\nsrc/engine.(*BlockRunner).getPriorBlocks.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:427"}
+PRODUCER ERROR
+{"level":"info","ts":1721978627.6577322,"caller":"engine/BlockRunner.go:274","msg":"Error producing receipt for block 6697 transaction hash: 0x6986037f19800d67a36a06891c44bad2ef5d03b58d20ed4de87c47ae6520c760"}
+{"level":"error","ts":1721978627.7417638,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978627.7497945,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978627.7543032,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978627.7564723,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+PRODUCER ERROR
+{"level":"error","ts":1721978627.7772799,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978628.111866,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processBlockReceipts\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:263\nsrc/engine.(*BlockRunner).processBlock\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:191\nsrc/engine.(*BlockRunner).getPriorBlocks.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:427"}
+PRODUCER ERROR
+{"level":"info","ts":1721978628.122466,"caller":"engine/BlockRunner.go:274","msg":"Error producing receipt for block 6771 transaction hash: 0xecc9f3d5c0e0b29de13bf3000938bbac84d52b0bfc1e053fac4d2dc4e3f97bc2"}
+{"level":"error","ts":1721978628.1297886,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processBlockReceipts\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:263\nsrc/engine.(*BlockRunner).processBlock\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:191\nsrc/engine.(*BlockRunner).getPriorBlocks.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:427"}
+PRODUCER ERROR
+{"level":"info","ts":1721978628.1378095,"caller":"engine/BlockRunner.go:274","msg":"Error producing receipt for block 6734 transaction hash: 0xb6abeca7940ffaf642e3dac025b52943bf7516db97e5a261a6f822010f9f1c1e"}
+1823519905
+Indexing prior blocs from 6823 to 7118
+{"level":"info","ts":1721978687.4218352,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004166"}
+{"level":"info","ts":1721978687.441265,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004166"}
+{"level":"error","ts":1721978687.5971828,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978687.6951482,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.6954172,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.6954174,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.695526,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+{"level":"error","ts":1721978687.700091,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.7015538,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.702315,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.7026732,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978687.7035637,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978687.7035813,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+priorCurrentBlock 2004165
+{"level":"info","ts":1721978687.8405058,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004167"}
+{"level":"info","ts":1721978687.876473,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004167"}
+{"level":"error","ts":1721978688.2735834,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978688.273738,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978688.2741194,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978688.2742405,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978688.2742763,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+PRODUCER ERROR
+{"level":"error","ts":1721978688.2754703,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+priorCurrentBlock 2004166
+{"level":"info","ts":1721978688.5358095,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004168"}
+{"level":"info","ts":1721978688.540964,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004168"}
+priorCurrentBlock 2004167
+{"level":"info","ts":1721978688.654707,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004169"}
+{"level":"info","ts":1721978689.6856914,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004169"}
+priorCurrentBlock 2004168
+{"level":"info","ts":1721978689.704775,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004170"}
+{"level":"info","ts":1721978689.7451236,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004170"}
+{"level":"error","ts":1721978690.0872576,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+priorCurrentBlock 2004169
+{"level":"info","ts":1721978690.42319,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004171"}
+{"level":"error","ts":1721978704.0885026,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"info","ts":1721978706.0114634,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004171"}
+{"level":"error","ts":1721978706.203416,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+{"level":"error","ts":1721978706.2046902,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+priorCurrentBlock 2004170
+{"level":"info","ts":1721978706.2926893,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004172"}
+{"level":"error","ts":1721978713.3662896,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+{"level":"error","ts":1721978713.3663628,"caller":"kafka/producer.go:208","msg":"Producer: unable to commit txn kafka server: The broker received an out of order sequence number\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:208\nsrc/engine.(*BlockRunner).processAddressesInBlock.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:306"}
+PRODUCER ERROR
+PRODUCER ERROR
+
+==============================================================================================================

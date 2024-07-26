@@ -58,7 +58,7 @@ func GenerateKafkaConfig() *sarama.Config {
 	config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
 	config.Producer.Transaction.Retry.Backoff = 10
 	config.Producer.Transaction.ID = "txn_producer"
-	config.Net.MaxOpenRequests = 1
+	config.Net.MaxOpenRequests = 2
 	return config
 }
 
@@ -229,7 +229,6 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 				continue
 			}
 		}
-		println("PRODUCER ERROR")
 		return false
 	}
 	return true
