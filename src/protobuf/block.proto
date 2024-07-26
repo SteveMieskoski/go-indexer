@@ -60,3 +60,11 @@ message AccessList {
   string Address = 1;
   repeated string StorageKeys = 2;
 }
+
+message AddressDetails {
+  string Address = 1;
+  uint64 Nonce = 2;
+  bool IsContract = 3;
+  uint64 Balance = 4;
+  uint64 LastSeen = 5;
+}

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	mapset "github.com/deckarep/golang-set/v2"
 	"os/signal"
 	"src/kafka"
 	"src/postgres"
@@ -14,6 +15,12 @@ import (
 	"syscall"
 	"time"
 )
+
+type addressToCheckStruct struct {
+	addressSet  mapset.Set[string]
+	blockNumber int64
+	txCount     int64
+}
 
 type BlockRunner struct {
 	priorRetrievalInProgress bool
@@ -27,6 +34,7 @@ type BlockRunner struct {
 	blockSyncTrack           postgres.PgBlockSyncTrackRepository
 	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
 	pgRetryTrack             postgres.PgTrackForToRetryRepository
+	//addressesToCheck         addressToCheckStruct
 }
 
 func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
@@ -58,7 +66,20 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 }
 
 func (r *BlockRunner) Demo() {
-	r.RetryFailedRetrievals()
+	balance, blockNumber, err := r.blockRetriever.GetAddressBalance("0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27", 2003762)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%v, %v\n", balance, blockNumber)
+	parseInt, err := strconv.ParseInt(balance[2:], 16, 64)
+
+	CollectedAddress := types.AddressBalance{
+		Address:  "0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27",
+		LastSeen: blockNumber,
+		Balance:  parseInt,
+	}
+
+	println(CollectedAddress.String())
 }
 
 func (r *BlockRunner) StartBlockSync() {
@@ -87,11 +108,11 @@ func (r *BlockRunner) StartBlockSync() {
 	default:
 	}
 
-	go r.getPriorBlocks()
-	r.getCurrentBlock()
+	go r.getPriorBlocks() // TODO <- UNCOMMENT
+	r.listenForCurrentBlock()
 }
 
-func (r *BlockRunner) getCurrentBlock() {
+func (r *BlockRunner) listenForCurrentBlock() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -128,16 +149,18 @@ func (r *BlockRunner) getCurrentBlock() {
 
 		val, err := r.redis.Get("priorCurrentBlock")
 		if err != nil {
-			return
+			utils.Logger.Errorln(err)
+			continue
 		}
 		valNum, _ := strconv.Atoi(val)
 		if int(latestBlock.Number)-valNum > 1 {
 			go r.getPriorBlocksInRange(valNum+1, int(latestBlock.Number)-1)
 		}
 
-		err = r.redis.Set("priorCurrentBlock", block.Number)
+		err = r.redis.Set("priorCurrentBlock", int64(block.Number))
 		if err != nil {
-			return
+			utils.Logger.Errorln(err)
+			continue
 		}
 	}
 
@@ -151,6 +174,7 @@ func (r *BlockRunner) getCurrentBlock() {
 
 }
 
+// break out into it's own type and possibly use context to hold the block number
 func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 
 	TransactionsProcessed := true
@@ -160,49 +184,11 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 	if completed {
 		convertedBlock := types.Block{}.MongoFromGoType(block)
 
-		utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
+		//utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
 
-		for _, tx := range block.Transactions {
-			completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
-			if !completedTx {
-				TransactionsProcessed = false
-				_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
-					DataType: types.TRANSACTION_TOPIC,
-					BlockId:  convertedBlock.Number,
-					RecordId: tx.Hash.String(),
-				})
-				if err != nil {
-					utils.Logger.Errorln(err)
-				}
-				utils.Logger.Infof("Error producing transaction for block %s transaction hash: %s", convertedBlock.Number, tx.Hash)
-				time.Sleep(r.produceDelay * time.Millisecond)
-			}
-		}
+		TransactionsProcessed = r.processBlockTransactions(block, convertedBlock)
 
-		receipts, err := GetBlockReceipts(convertedBlock.Hash)
-
-		if err != nil {
-			utils.Logger.Error(err)
-			wg.Done()
-			return false
-		}
-
-		for _, Receipt := range receipts {
-			completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
-			if !completedR {
-				ReceiptsProcessed = false
-				_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
-					DataType: types.RECEIPT_TOPIC,
-					BlockId:  convertedBlock.Number,
-					RecordId: Receipt.TransactionHash.String(),
-				})
-				if err != nil {
-					utils.Logger.Errorln(err)
-				}
-				utils.Logger.Infof("Error producing receipt for block %s transaction hash: %s", convertedBlock.Number, Receipt.TransactionHash)
-				time.Sleep(r.produceDelay * time.Millisecond)
-			}
-		}
+		ReceiptsProcessed = r.processBlockReceipts(convertedBlock, wg)
 
 		updateComplete, err := r.updateSyncRecord(int(block.Number), ReceiptsProcessed, TransactionsProcessed)
 		if err != nil {
@@ -229,6 +215,137 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 	return completed && ReceiptsProcessed && TransactionsProcessed
 }
 
+func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock types.MongoBlock) bool {
+	addressesToCheck := addressToCheckStruct{
+		addressSet:  mapset.NewSet[string](),
+		blockNumber: 0,
+		txCount:     int64(len(block.Transactions)),
+	}
+
+	TransactionsProcessed := true
+	for _, tx := range block.Transactions {
+		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
+		if !completedTx {
+			TransactionsProcessed = false
+			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
+				DataType: types.TRANSACTION_TOPIC,
+				BlockId:  convertedBlock.Number,
+				RecordId: tx.Hash.String(),
+			})
+			if err != nil {
+				utils.Logger.Errorln(err)
+			}
+			utils.Logger.Infof("Error producing transaction for block %s transaction hash: %s", convertedBlock.Number, tx.Hash)
+			time.Sleep(r.produceDelay * time.Millisecond)
+		} else {
+			addressesToCheck.addressSet.Add(tx.From.String())
+			addressesToCheck.addressSet.Add(tx.To.String())
+		}
+	}
+	addressesToCheck.blockNumber = int64(block.Number)
+
+	go r.processAddressesInBlock(addressesToCheck)
+	//r.processAddressesInBlock(addressesToCheck)
+	return TransactionsProcessed
+}
+
+func (r *BlockRunner) processBlockReceipts(convertedBlock types.MongoBlock, wg *sync.WaitGroup) bool {
+	ReceiptsProcessed := true
+	receipts, err := GetBlockReceipts(convertedBlock.Hash)
+
+	if err != nil {
+		utils.Logger.Error(err)
+		wg.Done()
+		return false
+	}
+
+	for _, Receipt := range receipts {
+		completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
+		if !completedR {
+			ReceiptsProcessed = false
+			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
+				DataType: types.RECEIPT_TOPIC,
+				BlockId:  convertedBlock.Number,
+				RecordId: Receipt.TransactionHash.String(),
+			})
+			if err != nil {
+				utils.Logger.Errorln(err)
+			}
+			utils.Logger.Infof("Error producing receipt for block %s transaction hash: %s", convertedBlock.Number, Receipt.TransactionHash)
+			time.Sleep(r.produceDelay * time.Millisecond)
+		}
+	}
+	return ReceiptsProcessed
+}
+
+// The batch call to erigon (at least) is returning incorrectly.
+func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStruct) {
+
+	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	//defer stop()
+
+	setIterator := addressesToCheck.addressSet.ToSlice()
+
+	for _, addr := range setIterator {
+		// excluding null address. such as with contract creation
+		if addr != "0x0" {
+			go func(addressToLookUp string, blockToCheck int64) {
+				balanceHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addressToLookUp, blockToCheck)
+				if err != nil {
+					utils.Logger.Errorln(err)
+					return
+				}
+				balance, err := strconv.ParseInt(balanceHex[2:], 16, 64)
+				//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
+
+				CollectedAddress := types.AddressBalance{
+					Address:  addressToLookUp,
+					LastSeen: blockNumber,
+					Balance:  balance,
+				}
+				_ = r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
+
+			}(addr, addressesToCheck.blockNumber)
+		}
+
+		//
+		//batch, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
+		//parseInt, err := strconv.ParseInt(str[2:], 16, 64)
+		//CollectedAddress := types.Address{
+		//	Address: addr,
+		//	LastSeen: blockNumber,
+		//	Balance:
+		//		}
+	}
+
+	//batch, blockNumber, err := r.blockRetriever.GetAddressDetailsBatch(setIterator, addressesToCheck.blockNumber)
+	//if err != nil {
+	//	utils.Logger.Errorln(err)
+	//}
+	//println("=============================")
+	//println(blockNumber)
+	//println(addressesToCheck.txCount)
+	//for _, addr := range batch {
+	//	fmt.Printf("%v\n", addr)
+	//	str := fmt.Sprintf("%v", addr.Result)
+	//	fmt.Printf("%v\n", str)
+	//	//strconv.ParseInt()
+	//	parseInt, err := strconv.ParseInt(str[2:], 16, 64)
+	//	if err != nil {
+	//		utils.Logger.Errorln(err)
+	//	}
+	//	str2 := fmt.Sprintf("%v", addr.Args[1])
+	//	parseInt2, err := strconv.ParseInt(str2[2:], 16, 64)
+	//	if err != nil {
+	//		utils.Logger.Errorln(err)
+	//	}
+	//	fmt.Printf("%v -> %d @ %v \n", addr.Args[0], parseInt, parseInt2)
+	//
+	//	//completedTx := r.producerFactory.Produce(types.ADDRESS_TOPIC, types.Address{Address: })
+	//
+	//}
+}
+
 func (r *BlockRunner) getPriorBlocks() {
 
 	dbAccess := r.newBlockSyncTrack()
@@ -253,15 +370,23 @@ func (r *BlockRunner) getPriorBlocks() {
 
 	blocksPerBatch := 10
 	goodRun := true
+	duration := 0
 
 	for lastBlockRetrieved < blockNumberOnSyncStart {
 
+		start := time.Now()
 		var wg sync.WaitGroup
 
 		if !goodRun {
 			blocksPerBatch = 10
 		} else if blocksPerBatch < 300 {
 			blocksPerBatch = blocksPerBatch + 10
+		} /*else if blocksPerBatch < 1000 {
+			blocksPerBatch = blocksPerBatch + 1
+		}*/
+		// was getting errors, maybe from above, need to check with the mem error
+		if duration > 900000000 && blocksPerBatch > 20 {
+			blocksPerBatch = blocksPerBatch - 5
 		}
 
 		batchEndBlock := lastBlockRetrieved + blocksPerBatch
@@ -324,6 +449,8 @@ func (r *BlockRunner) getPriorBlocks() {
 		}
 
 		wg.Wait()
+		duration = int(time.Since(start))
+		println(duration)
 		lastBlockRetrieved = batchEndBlock + 1
 	}
 
@@ -416,6 +543,7 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 		lastBlockRetrieved = batchEndBlock + 1
 	}
 
+	fmt.Printf("Last Block Retreived at EXIT %d \n", lastBlockRetrieved)
 	utils.Logger.Info("exiting: getPriorBlock External")
 	r.RetryFailedRetrievals()
 }

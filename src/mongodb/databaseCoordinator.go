@@ -5,6 +5,7 @@ import (
 	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/types"
+	"strconv"
 )
 
 type DatabaseCoordinator interface {
@@ -34,6 +35,7 @@ type databaseCoordinator struct {
 	receiptChan           chan *types.MongoReceipt
 	logChan               chan *types.MongoLog
 	addressChan           chan *types.Address
+	addresUpdatesChan     chan *types.Address
 	blobChan              chan *types.MongoBlob
 	transactionChan       chan *types.MongoTransaction
 }
@@ -115,6 +117,7 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 		logChan:               make(chan *types.MongoLog),
 		blobChan:              make(chan *types.MongoBlob),
 		addressChan:           make(chan *types.Address),
+		addresUpdatesChan:     make(chan *types.Address),
 		transactionChan:       make(chan *types.MongoTransaction),
 	}
 
@@ -132,6 +135,10 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 
 	go func() {
 		dbc.monitorAddressChannel()
+	}()
+
+	go func() {
+		dbc.monitorAddressUpdateChannel()
 	}()
 
 	go func() {
@@ -161,6 +168,10 @@ func (db *databaseCoordinator) AddAddress() chan<- *types.Address {
 	return db.addressChan
 }
 
+func (db *databaseCoordinator) UpdateAddress() chan<- *types.Address {
+	return db.addresUpdatesChan
+}
+
 func (db *databaseCoordinator) AddBlob() chan<- *types.MongoBlob {
 	return db.blobChan
 }
@@ -174,6 +185,7 @@ func (db *databaseCoordinator) Close() {
 	close(db.receiptChan)
 	close(db.logChan)
 	close(db.addressChan)
+	close(db.addresUpdatesChan)
 	close(db.blobChan)
 	close(db.transactionChan)
 }
@@ -190,6 +202,7 @@ func (db *databaseCoordinator) monitorBlockChannel() {
 
 func (db *databaseCoordinator) monitorReceiptChannel() {
 	for receipt := range db.receiptChan {
+		// check bloom filter to quickly identify whether the addresses are known
 		if !db.AddressChecker.Exist(receipt.From) {
 			db.AddAddress() <- &types.Address{Address: receipt.From}
 		}
@@ -220,6 +233,20 @@ func (db *databaseCoordinator) monitorLogChannel() {
 
 func (db *databaseCoordinator) monitorTransactionChannel() {
 	for tx := range db.transactionChan {
+		bnum, _ := strconv.ParseInt(tx.BlockNumber, 16, 64)
+		// check bloom filter to quickly identify whether the addresses are known
+		if !db.AddressChecker.Exist(tx.From) {
+			db.AddAddress() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
+		} else {
+			db.UpdateAddress() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
+		}
+
+		if !db.AddressChecker.Exist(tx.To) {
+			db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
+		} else {
+			db.UpdateAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
+		}
+
 		_, err := db.TransactionRepository.Add(*tx, context.Background())
 		if err != nil {
 			return
@@ -230,6 +257,7 @@ func (db *databaseCoordinator) monitorTransactionChannel() {
 func (db *databaseCoordinator) monitorBlobChannel() {
 	for blob := range db.blobChan {
 		_, err := db.BlobRepository.Add(*blob, context.Background())
+		// Handle errors better
 		if err != nil {
 			return
 		}
@@ -241,6 +269,19 @@ func (db *databaseCoordinator) monitorAddressChannel() {
 		println(address)
 		println("Received address")
 		_, err := db.AddressRepository.Add(*address)
+		// Handle errors better
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (db *databaseCoordinator) monitorAddressUpdateChannel() {
+	for address := range db.addresUpdatesChan {
+		println(address)
+		println("Received address")
+		err := db.AddressRepository.Update(*address)
+		// Handle errors better
 		if err != nil {
 			return
 		}

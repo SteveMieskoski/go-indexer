@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum/rpc"
 	"os"
 	"os/signal"
@@ -195,6 +196,73 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 
 	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, nil
+}
+func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (string, int64, error) {
+
+	if len(address) < 42 {
+		//println("Invalid Address Length")
+		return "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
+	}
+	// Connect the client.
+	url := os.Getenv("WS_RPC_URL")
+	client, _ := rpc.Dial(url)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer close(sigs)
+
+	blockNumberHex := strconv.FormatInt(blockNumber, 16)
+
+	var lastBlock string
+
+	err := client.CallContext(ctx, &lastBlock, "eth_getBalance", address, "0x"+blockNumberHex)
+
+	if err != nil {
+		utils.Logger.Error("can't get Balances:", err)
+		return "", blockNumber, err
+	}
+
+	//println(lastBlock)
+
+	//utils.Logger.Infof("retrieved block %d", blockToGet)
+	return lastBlock, blockNumber, nil
+}
+
+func (b BlockRetriever) GetAddressDetailsBatch(addressList []string, blockNumber int64) ([]rpc.BatchElem, int64, error) {
+	// Connect the client.
+	url := os.Getenv("WS_RPC_URL")
+	client, _ := rpc.Dial(url)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer close(sigs)
+
+	blockNumberHex := strconv.FormatInt(blockNumber, 16)
+	var lastBlock []rpc.BatchElem
+
+	for _, addr := range addressList {
+
+		var block string
+
+		lastBlock = append(lastBlock, rpc.BatchElem{
+			Method: "eth_getBalance",
+			Args:   []interface{}{addr, "0x" + blockNumberHex},
+			Result: &block,
+		})
+	}
+
+	err := client.BatchCall(lastBlock)
+
+	if err != nil {
+		utils.Logger.Error("can't get Balances:", err)
+		return nil, blockNumber, err
+	}
+
+	//println(lastBlock)
+
+	//utils.Logger.Infof("retrieved block %d", blockToGet)
+	return lastBlock, blockNumber, nil
 }
 
 func (b BlockRetriever) GetTransaction(txHash string) types.Transaction {

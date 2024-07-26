@@ -15,6 +15,7 @@ func main() {
 	flag.Parse()
 	utils.InitializeLogger()
 	err := godotenv.Load("../.env")
+	//err := godotenv.Load("../.env-remote")
 	if err != nil {
 		utils.Logger.Fatalf("Error loading .env file")
 	}

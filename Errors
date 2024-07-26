@@ -1,0 +1,129 @@
+I BELIEVE REFACTOR 1 WAS WORKING FOR CONTINUOUS RUNNING.
+
+==============================================================================================================
+invalid mem:
+
+Indexing prior blocs from 6189 to 6495
+Indexing prior blocs from 6496 to 6803
+Indexing prior blocs from 6804 to 7112
+{"level":"info","ts":1721977375.8974185,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004065"}
+{"level":"info","ts":1721977379.030123,"caller":"engine/blockRetriever.go:139","msg":"retrieved block 2004065"}
+priorCurrentBlock 2004064
+{"level":"info","ts":1721977379.9621754,"caller":"engine/BlockRunner.go:128","msg":"Recieved latest block: 2004066"}
+Indexing prior blocs from 7113 to 7422
+Indexing prior blocs from 7423 to 7733
+Indexing prior blocs from 7734 to 8045
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 77949 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc00ad060a0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0178ded20}, {0xf0bf20, 0xc010217a40}, {0x112996d?, 0xe?}, {0xc00ad060a0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0xe8b079?}}, {0xc0208a2ea0, 0x2a}, 0x1920)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc0208a2ea0, 0x2a}, 0xc00eadfe60?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 77972
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 77593 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc005e0e0c0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0077541c0}, {0xf0bf20, 0xc005344f60}, {0x112996d?, 0xe?}, {0xc005e0e0c0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0x0?}}, {0xc01fb25dd0, 0x2a}, 0x191f)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc01fb25dd0, 0x2a}, 0x0?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 77588
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 77259 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc0037c3640, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0003933b0}, {0xf0bf20, 0xc007f29290}, {0x112996d?, 0xe?}, {0xc0037c3640, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0x0?}}, {0xc018e8de60, 0x2a}, 0x1903)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc018e8de60, 0x2a}, 0xc01553d9e0?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 77370
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+==============================================================================================================
+
+Indexing prior blocs from 5883 to 6188
+2430741026
+3290600691
+Indexing prior blocs from 6189 to 6495
+Indexing prior blocs from 6496 to 6803
+1700779471
+1161393297
+Indexing prior blocs from 6804 to 7112
+Indexing prior blocs from 7113 to 7422
+4157322434
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 3440 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc0207fd7a0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0226c2a10}, {0xf0bf20, 0xc015a33ab0}, {0x112996d?, 0xe?}, {0xc0207fd7a0, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0x0?}}, {0xc002c7ad50, 0x2a}, 0x109)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc002c7ad50, 0x2a}, 0x0?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 3422
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 3532 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc021f4d460, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0222ad7a0}, {0xf0bf20, 0xc0170ab8f0}, {0x112996d?, 0xe?}, {0xc021f4d460, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0xb0bf57528178414f?}}, {0xc003324300, 0x2a}, 0xd0)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc003324300, 0x2a}, 0xc000337223?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 3603
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x18 pc=0xe71353]
+
+goroutine 3546 [running]:
+github.com/ethereum/go-ethereum/rpc.(*Client).nextID(...)
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:283
+github.com/ethereum/go-ethereum/rpc.(*Client).newMessage(0x10?, {0x112996d, 0xe}, {0xc022397040, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:549 +0x33
+github.com/ethereum/go-ethereum/rpc.(*Client).CallContext(0x0, {0x12eaf60, 0xc0223d0230}, {0xf0bf20, 0xc017140280}, {0x112996d?, 0xe?}, {0xc022397040, 0x2, 0x2})
+	/home/steve/go/pkg/mod/github.com/ethereum/go-ethereum@v1.14.5/rpc/client.go:341 +0xf6
+src/engine.BlockRetriever.GetAddressBalance({{0x2eb77c6d427fce85?}}, {0xc003b8d470, 0x2a}, 0xff)
+	/home/steve/projects/go-indexer/src/engine/blockRetriever.go:219 +0x2d7
+src/engine.(*BlockRunner).processAddressesInBlock.func1({0xc003b8d470, 0x2a}, 0xc000337223?)
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:293 +0x3d
+created by src/engine.(*BlockRunner).processAddressesInBlock in goroutine 3599
+	/home/steve/projects/go-indexer/src/engine/BlockRunner.go:292 +0x119
+
+
+==============================================================================================================

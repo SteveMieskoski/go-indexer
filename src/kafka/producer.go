@@ -76,7 +76,7 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 
 	_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
 		Version: int16(versionNum),
-		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC},
+		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
 	})
 	if err != nil {
 		return nil
@@ -173,6 +173,21 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 		break
 	case types.Blob:
 		pbBlock := types.Blob{}.ProtobufFromGoType(data)
+		blockToSend, err := proto.Marshal(&pbBlock)
+
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(blockToSend),
+		}
+		producer.Input() <- msg
+
+		if err != nil {
+			return false
+		}
+		break
+
+	case types.AddressBalance:
+		pbBlock := types.AddressBalance{}.ProtobufFromGoType(data)
 		blockToSend, err := proto.Marshal(&pbBlock)
 
 		msg := &sarama.ProducerMessage{

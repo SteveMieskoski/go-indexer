@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"src/types"
 	"src/utils"
@@ -12,6 +14,7 @@ type AddressRepository interface {
 	Add(appDoc types.Address) (string, error)
 	//List(count int, ctx context.Context) ([]*types.Address, error)
 	//GetById(oId string, ctx context.Context) (*types.Address, error)
+	Update(appDoc types.Address) error
 	Delete(oId string) (int64, error)
 }
 
@@ -27,8 +30,8 @@ func NewAddressRepository(client *PostgresDB) AddressRepository {
 func (a *addressRepository) Add(appDoc types.Address) (string, error) {
 
 	_, err := a.client.Exec(context.Background(),
-		`insert into addresses ("Address", "Nonce", "IsContract", "Balance")
-values ($1, $2, $3, $4);`, appDoc.Address, appDoc.Nonce, appDoc.IsContract, appDoc.Balance)
+		`insert into addresses ("Address", "Nonce", "IsContract", "Balance", "LastSeen")
+values ($1, $2, $3, $4);`, appDoc.Address, appDoc.Nonce, appDoc.IsContract, appDoc.Balance, appDoc.LastSeen)
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
@@ -39,6 +42,28 @@ values ($1, $2, $3, $4);`, appDoc.Address, appDoc.Nonce, appDoc.IsContract, appD
 	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
+}
+
+func (a *addressRepository) Update(appDoc types.Address) error {
+	var updateString = `
+		update addresses 
+		set "Nonce" = $2, "LastSeen" = $3
+		where "Address" = $1 AND "LastSeen" < $3;`
+
+	_, err := a.client.Exec(context.Background(), updateString,
+		appDoc.Address, appDoc.Nonce, appDoc.LastSeen)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// there were no rows, but otherwise no error occurred
+		} else {
+			//panic(err)
+			utils.Logger.Errorln(err)
+			return err
+
+		}
+	}
+	return nil
 }
 
 // func (a *addressRepository) List(count int, ctx context.Context) ([]*types.Address, error) {

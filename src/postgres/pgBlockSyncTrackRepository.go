@@ -36,7 +36,7 @@ func (a *pgBlockSyncTrackRepository) Add(appDoc types.PgBlockSyncTrack) (string,
 		appDoc.TransactionCount, appDoc.ContractsProcessed)
 
 	if err != nil {
-		panic(err)
+		utils.Logger.Errorln(err)
 	}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
@@ -55,7 +55,7 @@ func (a *pgBlockSyncTrackRepository) GetByBlockNumber(num int) (*types.PgBlockSy
 		if err == sql.ErrNoRows {
 			// there were no rows, but otherwise no error occurred
 		} else {
-			panic(err)
+			utils.Logger.Errorln(err)
 
 		}
 	}
@@ -81,7 +81,7 @@ func (a *pgBlockSyncTrackRepository) Update(appDoc types.PgBlockSyncTrack) (*typ
 		if err == sql.ErrNoRows {
 			// there were no rows, but otherwise no error occurred
 		} else {
-			panic(err)
+			utils.Logger.Errorln(err)
 
 		}
 	}
