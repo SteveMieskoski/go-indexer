@@ -116,7 +116,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 
 func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
 	// Connect the client.
-	url := os.Getenv("WS_RPC_URL")
+	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 
 	sigs := make(chan os.Signal, 1)
@@ -142,7 +142,7 @@ func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
 
 func (b BlockRetriever) LatestBlock() int {
 	// Connect the client.
-	url := os.Getenv("WS_RPC_URL")
+	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 
 	sigs := make(chan os.Signal, 1)
@@ -176,7 +176,6 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 
 	var lastBlock []rpc.BatchElem
 
-	println(lastBlockToGet)
 	for i := firstBlockToGet; i < lastBlockToGet; i++ {
 		blockNumberToRetreive := strconv.FormatInt(int64(i), 16)
 		var block types.Block
@@ -205,9 +204,13 @@ func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (st
 		return "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
 	}
 	// Connect the client.
-	url := os.Getenv("WS_RPC_URL")
-	client, _ := rpc.Dial(url)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	url := os.Getenv("HTTP_RPC_URL")
+	client, err := rpc.Dial(url)
+	if err != nil {
+		utils.Logger.Error("error connecting to RPC endpoint:", err)
+		return "", blockNumber, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -217,16 +220,13 @@ func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (st
 
 	var lastBlock string
 
-	err := client.CallContext(ctx, &lastBlock, "eth_getBalance", address, "0x"+blockNumberHex)
+	err = client.CallContext(ctx, &lastBlock, "eth_getBalance", address, "0x"+blockNumberHex)
 
 	if err != nil {
 		utils.Logger.Error("can't get Balances:", err)
 		return "", blockNumber, err
 	}
 
-	//println(lastBlock)
-
-	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, blockNumber, nil
 }
 
@@ -260,15 +260,12 @@ func (b BlockRetriever) GetAddressDetailsBatch(addressList []string, blockNumber
 		return nil, blockNumber, err
 	}
 
-	//println(lastBlock)
-
-	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, blockNumber, nil
 }
 
 func (b BlockRetriever) GetTransaction(txHash string) types.Transaction {
 	// Connect the client.
-	url := os.Getenv("WS_RPC_URL")
+	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 
 	sigs := make(chan os.Signal, 1)
@@ -293,7 +290,7 @@ func (b BlockRetriever) GetTransaction(txHash string) types.Transaction {
 
 func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
 	// Connect the client.
-	url := os.Getenv("WS_RPC_URL")
+	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 
 	sigs := make(chan os.Signal, 1)

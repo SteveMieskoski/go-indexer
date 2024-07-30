@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	brokers   = []string{"localhost:9092"}
+	//brokers   = []string{"localhost:9092"}
 	version   = "7.0.0"
 	topic     = "test"
 	producers = 6
@@ -58,7 +58,7 @@ func GenerateKafkaConfig() *sarama.Config {
 	config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
 	config.Producer.Transaction.Retry.Backoff = 10
 	config.Producer.Transaction.ID = "txn_producer"
-	config.Net.MaxOpenRequests = 2
+	config.Net.MaxOpenRequests = 1
 	return config
 }
 
@@ -66,7 +66,9 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	broker := sarama.NewBroker("localhost:9092")
+	brokerUri := os.Getenv("BROKER_URI")
+	brokers = []string{brokerUri}
+	broker := sarama.NewBroker(brokerUri)
 	err := broker.Open(nil)
 	if err != nil {
 		panic(err)

@@ -184,7 +184,7 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 	if completed {
 		convertedBlock := types.Block{}.MongoFromGoType(block)
 
-		utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
+		//utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
 
 		TransactionsProcessed = r.processBlockTransactions(block, convertedBlock)
 
@@ -244,7 +244,7 @@ func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock
 	}
 	addressesToCheck.blockNumber = int64(block.Number)
 
-	go r.processAddressesInBlock(addressesToCheck)
+	r.processAddressesInBlock(addressesToCheck)
 	//r.processAddressesInBlock(addressesToCheck)
 	return TransactionsProcessed
 }
@@ -289,23 +289,20 @@ func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStr
 	for _, addr := range setIterator {
 		// excluding null address. such as with contract creation
 		if addr != "0x0" {
-			go func(addressToLookUp string, blockToCheck int64) {
-				balanceHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addressToLookUp, blockToCheck)
-				if err != nil {
-					utils.Logger.Errorln(err)
-					return
-				}
-				balance, err := strconv.ParseInt(balanceHex[2:], 16, 64)
-				//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
+			balanceHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
+			if err != nil {
+				utils.Logger.Errorln(err)
+				return
+			}
+			balance, err := strconv.ParseInt(balanceHex[2:], 16, 64)
+			//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
 
-				CollectedAddress := types.AddressBalance{
-					Address:  addressToLookUp,
-					LastSeen: blockNumber,
-					Balance:  balance,
-				}
-				_ = r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
-
-			}(addr, addressesToCheck.blockNumber)
+			CollectedAddress := types.AddressBalance{
+				Address:  addr,
+				LastSeen: blockNumber,
+				Balance:  balance,
+			}
+			_ = r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
 		}
 
 	}

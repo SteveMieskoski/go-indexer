@@ -58,11 +58,20 @@ func (s AddressBalance) ProtobufFromGoType(addr AddressBalance) protobufLocal.Ad
 	}
 }
 
-func (s AddressBalance) GoFromProtobufType(addr protobufLocal.AddressDetails) Address {
+func (s AddressBalance) GoFromProtobufType(addr protobufLocal.AddressDetails) *AddressBalance {
 
-	return Address{
+	return &AddressBalance{
 		Address: addr.Address,
 		//Nonce:    int64(addr.Nonce),
+		Balance:  int64(addr.Balance),
+		LastSeen: int64(addr.LastSeen),
+	}
+}
+
+func (s AddressBalance) GoAddressFromProtobufType(addr protobufLocal.AddressDetails) *Address {
+
+	return &Address{
+		Address:  addr.Address,
 		Balance:  int64(addr.Balance),
 		LastSeen: int64(addr.LastSeen),
 	}

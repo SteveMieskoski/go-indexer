@@ -20,9 +20,10 @@ create table addresses
     "CreatedAt"       	timestamp with time zone default now(),
     "UpdatedAt"      	timestamp with time zone default now(),
     "Address"     		text,
-    "Nonce"       		text,
+    "Nonce"       		bigint,
     "IsContract"		boolean,
-    "Balance"    		bigint
+    "Balance"    		bigint,
+    "LastSeen"    		bigint
 );
 create unique index idx_addresses_address
     on addresses ("Address")`

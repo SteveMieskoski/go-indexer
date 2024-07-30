@@ -12,6 +12,10 @@ import (
 
 type AddressRepository interface {
 	Add(appDoc types.Address) (string, error)
+	AddAddressBalance(appDoc types.Address) (string, error)
+	AddAddressDetail(appDoc types.Address) (string, error)
+	AddContractAddress(appDoc types.Address) (string, error)
+	AddAddressOnly(appDoc types.Address) (string, error)
 	//List(count int, ctx context.Context) ([]*types.Address, error)
 	//GetById(oId string, ctx context.Context) (*types.Address, error)
 	Update(appDoc types.Address) error
@@ -27,11 +31,81 @@ func NewAddressRepository(client *PostgresDB) AddressRepository {
 	return &addressRepository{client: client.client, indicesExist: false}
 }
 
+// to check fields see this site: https://medium.com/@anajankow/fast-check-if-all-struct-fields-are-set-in-golang-bba1917213d2
 func (a *addressRepository) Add(appDoc types.Address) (string, error) {
 
 	_, err := a.client.Exec(context.Background(),
 		`insert into addresses ("Address", "Nonce", "IsContract", "Balance", "LastSeen")
-values ($1, $2, $3, $4);`, appDoc.Address, appDoc.Nonce, appDoc.IsContract, appDoc.Balance, appDoc.LastSeen)
+values ($1, $2, $3, $4, $5) ON CONFLICT ("Address") DO UPDATE SET "Nonce" = $2, "IsContract" = $3;`, appDoc.Address, appDoc.Nonce, appDoc.IsContract, appDoc.Balance, appDoc.LastSeen)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
+	//
+	//
+	//if result.Error != nil {
+	//	return "", result.Error
+	//}
+
+	return strconv.Itoa(int(appDoc.Id)), nil
+}
+
+func (a *addressRepository) AddAddressOnly(appDoc types.Address) (string, error) {
+
+	_, err := a.client.Exec(context.Background(),
+		`insert into addresses ("Address", "LastSeen")
+values ($1, $2) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $2;`, appDoc.Address, appDoc.LastSeen)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
+	//
+	//
+	//if result.Error != nil {
+	//	return "", result.Error
+	//}
+
+	return strconv.Itoa(int(appDoc.Id)), nil
+}
+
+func (a *addressRepository) AddContractAddress(appDoc types.Address) (string, error) {
+
+	_, err := a.client.Exec(context.Background(),
+		`insert into addresses ("Address", "IsContract", "LastSeen")
+values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $3;`, appDoc.Address, appDoc.IsContract, appDoc.LastSeen)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
+	//
+	//
+	//if result.Error != nil {
+	//	return "", result.Error
+	//}
+
+	return strconv.Itoa(int(appDoc.Id)), nil
+}
+
+func (a *addressRepository) AddAddressDetail(appDoc types.Address) (string, error) {
+
+	// maybe the nonce collection should get combined with the balance requests.
+	_, err := a.client.Exec(context.Background(),
+		`insert into addresses ("Address", "Nonce", "LastSeen", "IsContract")
+values ($1, $2, $3, $4) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $3, "Nonce" = $2  WHERE addresses."Nonce" <= $2;`, appDoc.Address, appDoc.Nonce, appDoc.LastSeen, appDoc.IsContract)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
+	//
+	//
+	//if result.Error != nil {
+	//	return "", result.Error
+	//}
+
+	return strconv.Itoa(int(appDoc.Id)), nil
+}
+
+func (a *addressRepository) AddAddressBalance(appDoc types.Address) (string, error) {
+
+	_, err := a.client.Exec(context.Background(),
+		`insert into addresses ("Address",  "Balance", "LastSeen")
+values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "Balance" = $2, "LastSeen" = $3;`, appDoc.Address, appDoc.Balance, appDoc.LastSeen)
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}

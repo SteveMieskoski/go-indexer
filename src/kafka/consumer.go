@@ -71,8 +71,11 @@ func NewPostgresConsumer(topics []string) {
 	consumer.PostgresCoordinator = *postgresConsumer
 	consumer.PrimaryCoordinator = "POSTGRES"
 
+	brokerUri := os.Getenv("BROKER_URI")
+	brokers := []string{brokerUri}
 	ctx, cancel := context.WithCancel(context.Background())
 	client, err := sarama.NewConsumerGroup(brokers, "postgres", config)
+
 	if err != nil {
 		utils.Logger.Panicf("Error creating consumer group client: %v", err)
 	}
@@ -137,12 +140,19 @@ func NewPostgresConsumer(topics []string) {
 
 func NewMongoDbConsumer(topics []string) {
 
+	sigusr1 := make(chan os.Signal, 1)
+	signal.Notify(sigusr1, syscall.SIGUSR1)
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+
 	keepRunning := true
 	utils.Logger.Info("Starting a new Sarama consumer")
 
 	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
 	version, err := sarama.ParseKafkaVersion(version)
+	groupId := "mongo"
 
 	if err != nil {
 		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
@@ -155,6 +165,27 @@ func NewMongoDbConsumer(topics []string) {
 		Collection: "blocks", // default Collection Name. Overridden in consumer.go
 	}
 
+	brokerUri := os.Getenv("BROKER_URI")
+	brokers := []string{brokerUri}
+	// --------- reset offsets (start) --------------------------
+	//
+	//broker := sarama.NewBroker(brokerUri)
+	//err = broker.Open(nil)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//versionNum, _ := strconv.ParseInt(version.String(), 10, 0)
+	//
+	//_, err = broker.DeleteOffsets(&sarama.DeleteOffsetsRequest{
+	//	Version: int16(versionNum),
+	//	Group:   groupId,
+	//})
+	//if err != nil {
+	//	utils.Logger.Info("Error deleting offsets: %v", err)
+	//	return
+	//}
+	// --------- reset offsets (end) --------------------------
 	/**
 	 * Construct a new Sarama configuration.
 	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
@@ -177,7 +208,8 @@ func NewMongoDbConsumer(topics []string) {
 	consumer.PrimaryCoordinator = "MONGO"
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client, err := sarama.NewConsumerGroup(brokers, "mongo", config)
+	client, err := sarama.NewConsumerGroup(brokers, groupId, config)
+
 	if err != nil {
 		utils.Logger.Panicf("Error creating consumer group client: %v", err)
 	}
@@ -202,17 +234,17 @@ func NewMongoDbConsumer(topics []string) {
 				return
 			}
 			consumer.ready = make(chan bool)
+			select {
+			case <-sigterm:
+				utils.Logger.Info("consumer loop terminating: via signal")
+				return
+			default:
+			}
 		}
 	}()
 
 	<-consumer.ready // Await till the consumer has been set up
 	utils.Logger.Info("Sarama consumer up and running!...")
-
-	sigusr1 := make(chan os.Signal, 1)
-	signal.Notify(sigusr1, syscall.SIGUSR1)
-
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
 	for keepRunning {
 		select {
@@ -286,7 +318,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			case "MONGO":
 				consumer.DatabaseCoordinator.Close()
 			case "POSTGRES":
-
+			default:
 			}
 
 			session.Context().Done()
@@ -306,7 +338,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 					return err
 				}
 				consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(block)
-				utils.Logger.Infof("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
+				//utils.Logger.Infof("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
 			}
 
 			if message.Topic == types.RECEIPT_TOPIC {
@@ -321,7 +353,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 					consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
 				}
 				//println("Consumed receipt", receipt.String())
-				utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
+				//utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
 
 			if message.Topic == types.BLOB_TOPIC {
@@ -332,7 +364,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				}
 				consumer.DatabaseCoordinator.AddBlob() <- consumer.DatabaseCoordinator.ConvertToBlob(&blob)
 
-				utils.Logger.Infof("Message claimed: Blob = %s, timestamp = %v, topic = %s", blob.GetKzgCommitment(), message.Timestamp, message.Topic)
+				//utils.Logger.Infof("Message claimed: Blob = %s, timestamp = %v, topic = %s", blob.GetKzgCommitment(), message.Timestamp, message.Topic)
 			}
 
 			if message.Topic == types.TRANSACTION_TOPIC {
@@ -343,7 +375,19 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				}
 				consumer.DatabaseCoordinator.AddTransaction() <- consumer.DatabaseCoordinator.ConvertToTransaction(&tx)
 
-				utils.Logger.Infof("Message claimed: Tx Hash = %s, timestamp = %v, topic = %s", tx.Hash, message.Timestamp, message.Topic)
+				//utils.Logger.Infof("Message claimed: Tx Hash = %s, timestamp = %v, topic = %s", tx.Hash, message.Timestamp, message.Topic)
+
+			}
+
+			if message.Topic == types.ADDRESS_TOPIC {
+				var addr protobuf2.AddressDetails
+				err := proto.Unmarshal(message.Value, &addr)
+				if err != nil {
+					return err
+				}
+				consumer.DatabaseCoordinator.AddAddressBalance() <- consumer.DatabaseCoordinator.ConvertToAddress(&addr)
+
+				//utils.Logger.Infof("Message claimed: Address = %s, timestamp = %v, topic = %s", addr.Address, message.Timestamp, message.Topic)
 
 			}
 

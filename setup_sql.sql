@@ -42,7 +42,8 @@ create table addresses
     address     text,
     nonce       text,
     is_contract boolean,
-    balance     bigint
+    balance     bigint,
+    lastSeen    bigint
 );
 
 create unique index idx_addresses_address
