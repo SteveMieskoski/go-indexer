@@ -118,6 +118,8 @@ func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.Sidec
 
 	completedOk := true
 
+	//fmt.Printf("Sidecars retrieved %d\n", len(sideCar.Data))
+
 	for _, blob := range sideCar.Data {
 		completed := b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		if !completed {
@@ -149,13 +151,14 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 	_, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	resultChan := make(chan bool)
-	defer close(resultChan)
+	//resultChan := make(chan bool)
+	//defer close(resultChan)
 
 	Num, _ := b.redis.Get("BeaconSlotNumberOnSyncStart")
 	slotNumberOnSyncStart, _ := strconv.Atoi(Num)
+	fmt.Printf("Slot Number on Sync Start %d\n", slotNumberOnSyncStart)
 
-	lastSlotRetrieved := 0
+	lastSlotRetrieved := slotNumberOnSyncStart - (4096 * 32) // 4096 epochs with 32 slots each
 	val, err := b.redis.Get("lastPriorSlotRetrieved")
 	if err != nil {
 		err := b.redis.Set("lastPriorSlotRetrieved", lastSlotRetrieved)
@@ -172,13 +175,15 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 
 	for lastSlotRetrieved <= slotNumberOnSyncStart {
 
-		fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
+		if lastSlotRetrieved%50 == 0 {
+			fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
+		}
 
 		var wg sync.WaitGroup
 
+		wg.Add(1)
 		sideCar := GetBlobSideCars(strconv.Itoa(lastSlotRetrieved))
 
-		wg.Add(1)
 		_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
 			Slot:           int64(lastSlotRetrieved),
 			Retrieved:      true,
@@ -196,6 +201,7 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 
 		wg.Wait()
 
+		//time.Sleep(100 * time.Millisecond)
 		// TODO: Revisit sending a number of calls all at once, but need to sync or respond to the
 		// TODO: pace of the BlockRunner because when both are trying to commit to Kafka several fail
 		//batchEndSlot := lastSlotRetrieved + slotsPerBatch

@@ -120,7 +120,8 @@ func GetBeaconHeader() *types.BeaconHeadersResponse {
 
 func GetBlobSideCars(slot string) types.SidecarsResponse {
 
-	res, err := http.Get("http://127.0.0.1:3500/eth/v1/beacon/blob_sidecars/" + slot)
+	url := os.Getenv("BEACON_RPC_URL")
+	res, err := http.Get(url + "/eth/v1/beacon/blob_sidecars/" + slot)
 	if err != nil {
 		fmt.Printf("client: error making http request: %s\n", err)
 		os.Exit(1)
@@ -142,6 +143,7 @@ func GetBlobSideCars(slot string) types.SidecarsResponse {
 
 	var arr *types.SidecarsResponse
 	if err := json.Unmarshal([]byte(resBody), &arr); err != nil {
+		fmt.Printf("client: could not unmarshal body: %s\n", err)
 		panic(err)
 	}
 
