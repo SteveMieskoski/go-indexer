@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/signal"
 	"src/kafka"
 	"src/postgres"
@@ -27,14 +26,14 @@ type BeaconBlockRunner struct {
 	produceDelay             time.Duration
 }
 
-func NewBeaconBlockRunner(idxConfig types.IdxConfigStruct) BeaconBlockRunner {
+func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig types.IdxConfigStruct) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient(2)
 	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
 	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
-	brokers := os.Getenv("BROKER_URI")
-	producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
+	//brokers := os.Getenv("BROKER_URI")
+	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,

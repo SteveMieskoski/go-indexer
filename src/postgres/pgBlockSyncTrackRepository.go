@@ -38,7 +38,7 @@ func (a *pgBlockSyncTrackRepository) Add(appDoc types.PgBlockSyncTrack) (string,
 
 	if err != nil {
 		utils.Logger.Errorln(err)
-		utils.Logger.Infof("Postgres Error for BLOCK: %d\n", appDoc.Number)
+		utils.Logger.Infof("Postgres Error for BLOCK: %s\n", appDoc.String())
 	}
 
 	return strconv.Itoa(int(appDoc.Id)), nil

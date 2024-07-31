@@ -1,0 +1,3 @@
+{"level":"error","ts":1722414059.991135,"caller":"kafka/producer.go:252","msg":"Producer: unable to commit txn kafka: invalid configuration (Attempt to produce message larger than configured Producer.
+MaxMessageBytes: 1233721 > 1048576)\n","stacktrace":"src/kafka.(*ProducerProvider).Produce\n\t/home/steve/projects/go-indexer/src/kafka/producer.go:252\nsrc/engine.(*BlockRunner).processBlock\n\t/home
+/steve/projects/go-indexer/src/engine/BlockRunner.go:198\nsrc/engine.(*BlockRunner).getPriorBlocks.func1\n\t/home/steve/projects/go-indexer/src/engine/BlockRunner.go:434"}

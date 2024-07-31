@@ -11,6 +11,8 @@ import (
 	"src/types"
 	"src/utils"
 	"strconv"
+	"time"
+
 	//"strconv"
 	"sync"
 	"syscall"
@@ -59,6 +61,7 @@ func GenerateKafkaConfig() *sarama.Config {
 	config.Producer.Partitioner = sarama.NewRoundRobinPartitioner
 	config.Producer.Transaction.Retry.Backoff = 10
 	config.Producer.Transaction.ID = "txn_producer"
+	config.Producer.MaxMessageBytes = 5000000
 	config.Net.MaxOpenRequests = 1
 	return config
 }
@@ -88,12 +91,39 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 		}
 		//utils.Logger.Infof("waiting for Kafka to finish clearing")
 		//time.Sleep(10 * time.Second)
-		//broker.CreateTopics(&sarama.CreateTopicsRequest{
-		//	Version:      0,
-		//	TopicDetails: nil,
-		//	Timeout:      0,
-		//	ValidateOnly: false,
-		//})
+		tpcs := make(map[string]*sarama.TopicDetail)
+		tpcs[types.TRANSACTION_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		tpcs[types.RECEIPT_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		tpcs[types.BLOCK_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		tpcs[types.LOG_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		tpcs[types.BLOB_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		tpcs[types.ADDRESS_TOPIC] = &sarama.TopicDetail{
+			NumPartitions:     -1,
+			ReplicationFactor: -1,
+		}
+		broker.CreateTopics(&sarama.CreateTopicsRequest{
+			Version:      int16(versionNum),
+			TopicDetails: tpcs,
+			Timeout:      5 * time.Second,
+			ValidateOnly: false,
+		})
+		utils.Logger.Infof("waiting for Kafka to finish resetting")
+		time.Sleep(3 * time.Second)
 		// DeleteTopicsRequest
 	}
 
@@ -219,6 +249,7 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 
 	// commit transaction
 	err = producer.CommitTxn()
+	// TODO: Implement appropriate error handling and recovery
 	if err != nil {
 		utils.Logger.Errorf("Producer: unable to commit txn %s\n", err)
 		for {

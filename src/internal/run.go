@@ -1,7 +1,10 @@
 package internal
 
 import (
+	"os"
 	"src/engine"
+	"src/kafka"
+
 	//"src/kafka"
 	//"src/mongodb"
 	"src/types"
@@ -17,13 +20,16 @@ import (
 
 func Run(idxConfig types.IdxConfigStruct) {
 
-	runs := engine.NewBlockRunner(idxConfig)
+	brokers := os.Getenv("BROKER_URI")
+	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
+
+	runs := engine.NewBlockRunner(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
 	if !idxConfig.DisableBeacon {
 		go func() {
-			beaconBlockRunner := engine.NewBeaconBlockRunner(idxConfig)
+			beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
 			beaconBlockRunner.StartBeaconSync()
 		}()
 	}
