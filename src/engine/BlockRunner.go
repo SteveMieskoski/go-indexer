@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
+	"os"
 	"os/signal"
 	"src/kafka"
 	"src/postgres"
@@ -37,7 +38,7 @@ type BlockRunner struct {
 	//addressesToCheck         addressToCheckStruct
 }
 
-func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
+func NewBlockRunner() BlockRunner {
 
 	redisClient := redisdb.NewClient(1)
 	redisTrack := redisdb.NewClient(1)
@@ -49,6 +50,9 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 	createNewBlockSyncTrack := func() postgres.PgBlockSyncTrackRepository {
 		return postgres.NewBlockSyncTrackRepository(postgres.NewClient())
 	}
+
+	brokers := os.Getenv("BROKER_URI")
+	producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig)
 
 	return BlockRunner{
 		priorRetrievalInProgress: false,

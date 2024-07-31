@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"os"
 	"os/signal"
-	"src/utils"
+	//"src/utils"
 	"syscall"
 )
 
@@ -107,29 +107,23 @@ func NewClient() *PostgresDB {
 		}
 	}()
 
-	//var greeting string
-	//err = dbpool.QueryRow(context.Background(), "select 'Hello, world!'").Scan(&greeting)
+	// DROPS AND REGENERATES TABLES
+	//_, err = dbpool.Exec(context.Background(), createAddressesTable)
 	//if err != nil {
-	//	fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-	//	os.Exit(1)
+	//	utils.Logger.Errorln(err)
 	//}
-
-	_, err = dbpool.Exec(context.Background(), createAddressesTable)
-	if err != nil {
-		utils.Logger.Errorln(err)
-	}
-	_, err = dbpool.Exec(context.Background(), createBlockSyncTable)
-	if err != nil {
-		utils.Logger.Errorln(err)
-	}
-	_, err = dbpool.Exec(context.Background(), createSlotSyncTable)
-	if err != nil {
-		utils.Logger.Errorln(err)
-	}
-	_, err = dbpool.Exec(context.Background(), createTrackForRetryTable)
-	if err != nil {
-		utils.Logger.Errorln(err)
-	}
+	//_, err = dbpool.Exec(context.Background(), createBlockSyncTable)
+	//if err != nil {
+	//	utils.Logger.Errorln(err)
+	//}
+	//_, err = dbpool.Exec(context.Background(), createSlotSyncTable)
+	//if err != nil {
+	//	utils.Logger.Errorln(err)
+	//}
+	//_, err = dbpool.Exec(context.Background(), createTrackForRetryTable)
+	//if err != nil {
+	//	utils.Logger.Errorln(err)
+	//}
 
 	return &PostgresDB{client: dbpool}
 }

@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"src/types"
 	"src/utils"
-	"strconv"
+	//"strconv"
 	"sync"
 	"syscall"
 )
@@ -74,19 +74,20 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 		panic(err)
 	}
 
-	versionNum, _ := strconv.ParseInt(version, 10, 0)
-
-	_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
-		Version: int16(versionNum),
-		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
-	})
-	if err != nil {
-		return nil
-	}
+	// DELETES/CLEARS EXISTING TOPICS
+	//versionNum, _ := strconv.ParseInt(version, 10, 0)
+	//_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
+	//	Version: int16(versionNum),
+	//	Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
+	//})
+	//if err != nil {
+	//	return nil
+	//}
 	// DeleteTopicsRequest
 
 	provider := &ProducerProvider{}
 	provider.ProducerProvider = func() sarama.AsyncProducer {
+
 		config := producerConfigurationProvider()
 		suffix := provider.transactionIdGenerator
 		// Append transactionIdGenerator to current config.Producer.Transaction.ID to ensure transaction-id uniqueness.
