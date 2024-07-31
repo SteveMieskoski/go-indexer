@@ -110,6 +110,12 @@ func NewClient(idxConfig types.IdxConfigStruct) *PostgresDB {
 		}
 	}()
 
+	if idxConfig.ClearConsumer {
+		_, err = dbpool.Exec(context.Background(), createAddressesTable)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+	}
 	if idxConfig.ClearPostgres {
 		// DROPS AND REGENERATES TABLES
 		_, err = dbpool.Exec(context.Background(), createAddressesTable)

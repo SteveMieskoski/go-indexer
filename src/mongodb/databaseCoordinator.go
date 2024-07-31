@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/types"
@@ -87,22 +88,22 @@ func newDatabaseCoordinator(settings DatabaseSetting, idxConfig types.IdxConfigS
 
 	pg := postgres.NewClient(idxConfig)
 
-	client, err := GetClient(settings)
+	client, err := GetClient(settings, idxConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client2, err := GetClient(settings)
+	client2, err := GetClient(settings, idxConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client3, err := GetClient(settings)
+	client3, err := GetClient(settings, idxConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client4, err := GetClient(settings)
+	client4, err := GetClient(settings, idxConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -231,17 +232,24 @@ func (db *databaseCoordinator) Close() {
 }
 
 func (db *databaseCoordinator) monitorBlockChannel() {
-
+	receivedCount := 0
 	for blk := range db.blockChan {
+		receivedCount++
 		_, err := db.BlockRepository.Add(*blk, context.Background())
 		if err != nil {
-			return
+			utils.Logger.Errorf("Error from consumer for block: %v", err)
+			//return
+		}
+		if receivedCount%100 == 0 {
+			fmt.Printf("Processed %d Blocks\n", receivedCount)
 		}
 	}
 }
 
 func (db *databaseCoordinator) monitorReceiptChannel() {
+	receivedCount := 0
 	for receipt := range db.receiptChan {
+		receivedCount++
 		bnum, _ := strconv.ParseInt(receipt.BlockNumber, 16, 64)
 		// check bloom filter to quickly identify whether the addresses are known
 		//if !db.AddressChecker.Exist(receipt.From) {
@@ -258,29 +266,45 @@ func (db *databaseCoordinator) monitorReceiptChannel() {
 		_, err := db.ReceiptRepository.Add(*receipt, context.Background())
 
 		if err != nil {
-			return
+			utils.Logger.Errorf("Error from consumer for receipt: %v", err)
+			//return
 		}
+		if receivedCount%100 == 0 {
+			fmt.Printf("Processed %d Receipts\n", receivedCount)
+		}
+
 	}
 }
 
 func (db *databaseCoordinator) monitorLogChannel() {
+	receivedCount := 0
 	for log := range db.logChan {
+		receivedCount++
 		_, err := db.LogRepository.Add(*log, context.Background())
 		if err != nil {
-			return
+			utils.Logger.Errorf("Error from consumer for log: %v", err)
+			//return
+		}
+
+		if receivedCount%100 == 0 {
+			fmt.Printf("Processed %d Logs\n", receivedCount)
 		}
 	}
 }
 
 func (db *databaseCoordinator) monitorTransactionChannel() {
+	receivedCount := 0
 	for tx := range db.transactionChan {
+		receivedCount++
 		bnum, _ := strconv.ParseInt(tx.BlockNumber, 16, 64)
 
 		//db.AddAddressDetail() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
 		// work around due to above channel blocking. Doesn't appear that it should?
-		_, err := db.AddressRepository.AddAddressDetail(types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum})
+		//_, err := db.AddressRepository.AddAddressDetail(types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum})
+		db.AddAddressDetail() <- &types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum}
 		db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
 
+		println("did it block")
 		// check bloom filter to quickly identify whether the addresses are known
 		//if !db.AddressChecker.Exist(tx.From) {
 		//	db.AddAddressDetail() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
@@ -294,26 +318,37 @@ func (db *databaseCoordinator) monitorTransactionChannel() {
 		//	db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
 		//}
 
-		_, err = db.TransactionRepository.Add(*tx, context.Background())
+		_, err := db.TransactionRepository.Add(*tx, context.Background())
 		if err != nil {
-			utils.Logger.Panicf("Error from consumer: %v", err)
+			utils.Logger.Errorf("Error from consumer for transaction: %v", err)
 			//return
+		}
+		if receivedCount%100 == 0 {
+			fmt.Printf("Processed %d Transactions\n", receivedCount)
 		}
 	}
 }
 
 func (db *databaseCoordinator) monitorBlobChannel() {
+	receivedCount := 0
 	for blob := range db.blobChan {
+		receivedCount++
 		_, err := db.BlobRepository.Add(*blob, context.Background())
 		// Handle errors better
 		if err != nil {
-			return
+			utils.Logger.Errorf("Error from consumer for blob: %v", err)
+			//return
+		}
+
+		if receivedCount%100 == 0 {
+			fmt.Printf("Processed %d Blobs\n", receivedCount)
 		}
 	}
 }
 
 func (db *databaseCoordinator) monitorAddressChannel() {
 	for address := range db.addressChan {
+		println("address only")
 		//println("Received address")
 		_, err := db.AddressRepository.AddAddressOnly(*address)
 		// Handle errors better
@@ -326,19 +361,19 @@ func (db *databaseCoordinator) monitorAddressChannel() {
 
 func (db *databaseCoordinator) monitorAddAddressBalanceChannel() {
 	for address := range db.addressBalanceChan {
-		//println(address)
+		println("monitorAddAddressBalanceChannel")
 		//println("Received address")
 		_, err := db.AddressRepository.AddAddressBalance(*address)
 		// Handle errors better
 		if err != nil {
-			utils.Logger.Panicf("Error from monitorAddAddressBalanceChannel: %v", err)
+			utils.Logger.Errorf("Error from monitorAddAddressBalanceChannel: %v", err)
 		}
 	}
 }
 
 func (db *databaseCoordinator) monitorAddAddressDetailChannel() {
 	for address := range db.addressDetailChan {
-		//println(address)
+		println("address detail")
 		//println("Received address")
 		_, err := db.AddressRepository.AddAddressDetail(*address)
 		// Handle errors better
@@ -356,7 +391,7 @@ func (db *databaseCoordinator) monitorAddContractAddressChannel() {
 		_, err := db.AddressRepository.AddContractAddress(*address)
 		// Handle errors better
 		if err != nil {
-			utils.Logger.Panicf("Error from monitorAddContractAddressChannel: %v", err)
+			utils.Logger.Errorf("Error from monitorAddContractAddressChannel: %v", err)
 		}
 	}
 }
@@ -368,7 +403,7 @@ func (db *databaseCoordinator) monitorAddressUpdateChannel() {
 		err := db.AddressRepository.Update(*address)
 		// Handle errors better
 		if err != nil {
-			utils.Logger.Panicf("Error from monitorAddressUpdateChannel: %v", err)
+			utils.Logger.Errorf("Error from monitorAddressUpdateChannel: %v", err)
 		}
 	}
 }

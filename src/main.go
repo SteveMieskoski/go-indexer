@@ -48,6 +48,12 @@ func main() {
 				Destination: &IdxConfig.ClearRedis,
 			},
 			&cli.BoolFlag{
+				Name:        "clear-consumer",
+				Value:       false,
+				Usage:       "thing",
+				Destination: &IdxConfig.ClearConsumer,
+			},
+			&cli.BoolFlag{
 				Name:        "disable-beacon",
 				Value:       false,
 				Usage:       "thing",

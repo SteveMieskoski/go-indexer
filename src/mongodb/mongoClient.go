@@ -5,6 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"src/types"
 	"src/utils"
 )
 
@@ -44,7 +45,7 @@ func ConnectMongoDb() (*mongo.Client, error) {
 	return client, nil
 }
 
-func GetClient(setting DatabaseSetting) (*mongo.Client, error) {
+func GetClient(setting DatabaseSetting, idxConfig types.IdxConfigStruct) (*mongo.Client, error) {
 	//serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(setting.Url) /*.SetServerAPIOptions(serverAPI)*/
 	// Create a new client and connect to the server
@@ -53,6 +54,13 @@ func GetClient(setting DatabaseSetting) (*mongo.Client, error) {
 		panic(err)
 	}
 
+	if idxConfig.ClearConsumer {
+		err := client.Database(setting.DbName).Collection(setting.Collection).Drop(context.TODO())
+		if err != nil {
+			panic(err)
+			//return nil, err
+		}
+	}
 	// Send a ping to confirm a successful connection
 	var result bson.M
 	if err := client.Database(setting.DbName).RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {

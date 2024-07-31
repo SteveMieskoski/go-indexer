@@ -32,113 +32,11 @@ type Consumer struct {
 	DatabaseCoordinator mongodb.DatabaseCoordinator
 	PostgresCoordinator postgres.PostgresDB
 	PrimaryCoordinator  string
+	IdxConfig           types.IdxConfigStruct
+	ConsumerTopics      []string
 }
 
-// need topics[topic] = handler
-func NewPostgresConsumer(topics []string, idxConfig types.IdxConfigStruct) {
-
-	keepRunning := true
-	utils.Logger.Info("Starting a new Sarama consumer")
-
-	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
-
-	version, err := sarama.ParseKafkaVersion(version)
-
-	if err != nil {
-		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
-	}
-
-	/**
-	 * Construct a new Sarama configuration.
-	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
-	 */
-	config := sarama.NewConfig()
-	config.Version = version
-	config.Metadata.Timeout = 20 * time.Second
-	config.ClientID = "Indexer"
-	config.Consumer.Return.Errors = true
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
-
-	postgresConsumer := postgres.NewClient(idxConfig)
-
-	/**
-	 * Setup a new Sarama consumer group
-	 */
-	consumer := Consumer{
-		ready: make(chan bool),
-	}
-
-	consumer.PostgresCoordinator = *postgresConsumer
-	consumer.PrimaryCoordinator = "POSTGRES"
-
-	brokerUri := os.Getenv("BROKER_URI")
-	brokers := []string{brokerUri}
-	ctx, cancel := context.WithCancel(context.Background())
-	client, err := sarama.NewConsumerGroup(brokers, "postgres", config)
-
-	if err != nil {
-		utils.Logger.Panicf("Error creating consumer group client: %v", err)
-	}
-
-	consumptionIsPaused := false
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			// `Consume` should be called inside an infinite loop, when a
-			// server-side rebalance happens, the consumer session will need to be
-			// recreated to get the new claims
-			if err := client.Consume(ctx, topics, &consumer); err != nil {
-				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
-					return
-				}
-				utils.Logger.Panicf("Error from consumer: %v", err)
-			}
-			// check if context was cancelled, signaling that the consumer should stop
-			if ctx.Err() != nil {
-				return
-			}
-			consumer.ready = make(chan bool)
-		}
-	}()
-
-	<-consumer.ready // Await till the consumer has been set up
-	utils.Logger.Info("Sarama consumer up and running!...")
-
-	sigusr1 := make(chan os.Signal, 1)
-	signal.Notify(sigusr1, syscall.SIGUSR1)
-
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
-
-	for keepRunning {
-		select {
-		case <-ctx.Done():
-			utils.Logger.Info("NewConsumer terminating: context cancelled")
-			keepRunning = false
-			consumer.terminateRun = true
-		case <-sigterm:
-			utils.Logger.Info("NewConsumer terminating: via signal")
-			keepRunning = false
-			consumer.terminateRun = true
-			cancel()
-			err := client.Close()
-			if err != nil {
-				return
-			}
-		case <-sigusr1:
-			toggleConsumptionFlow(client, &consumptionIsPaused)
-		}
-	}
-	cancel()
-	wg.Wait()
-	if err = client.Close(); err != nil {
-		log.Panicf("Error closing client: %v", err)
-	}
-}
-
-func NewMongoDbConsumer(topics []string, idxConfig types.IdxConfigStruct) {
+func NewMongoDbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxConfig types.IdxConfigStruct) {
 
 	sigusr1 := make(chan os.Signal, 1)
 	signal.Notify(sigusr1, syscall.SIGUSR1)
@@ -158,12 +56,12 @@ func NewMongoDbConsumer(topics []string, idxConfig types.IdxConfigStruct) {
 		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
 	}
 
-	uri := os.Getenv("MONGO_URI")
-	var settings = mongodb.DatabaseSetting{
-		Url:        uri,
-		DbName:     "blocks",
-		Collection: "blocks", // default Collection Name. Overridden in consumer.go
-	}
+	//uri := os.Getenv("MONGO_URI")
+	//var settings = mongodb.DatabaseSetting{
+	//	Url:        uri,
+	//	DbName:     "blocks",
+	//	Collection: "blocks", // default Collection Name. Overridden in consumer.go
+	//}
 
 	brokerUri := os.Getenv("BROKER_URI")
 	brokers := []string{brokerUri}
@@ -201,9 +99,11 @@ func NewMongoDbConsumer(topics []string, idxConfig types.IdxConfigStruct) {
 	 * Setup a new Sarama consumer group
 	 */
 	consumer := Consumer{
-		ready: make(chan bool),
+		ready:          make(chan bool),
+		IdxConfig:      idxConfig,
+		ConsumerTopics: topics,
 	}
-	DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings, idxConfig)
+	//DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings, idxConfig)
 	consumer.DatabaseCoordinator = DbCoordinator
 	consumer.PrimaryCoordinator = "MONGO"
 
@@ -286,7 +186,14 @@ func toggleConsumptionFlow(client sarama.ConsumerGroup, isPaused *bool) {
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
+func (consumer *Consumer) Setup(sess sarama.ConsumerGroupSession) error {
+
+	if consumer.IdxConfig.ClearConsumer {
+		for _, aTopic := range consumer.ConsumerTopics {
+			sess.ResetOffset(aTopic, 0, 0, "")
+		}
+	}
+
 	// Mark the consumer as ready
 	println("consumer.go:146 SETUP") // todo remove dev item
 	close(consumer.ready)
@@ -410,3 +317,109 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		}
 	}
 }
+
+// need topics[topic] = handler
+//func NewPostgresConsumer(topics []string, idxConfig types.IdxConfigStruct) {
+//
+//	keepRunning := true
+//	utils.Logger.Info("Starting a new Sarama consumer")
+//
+//	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+//
+//	version, err := sarama.ParseKafkaVersion(version)
+//
+//	if err != nil {
+//		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
+//	}
+//
+//	/**
+//	 * Construct a new Sarama configuration.
+//	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
+//	 */
+//	config := sarama.NewConfig()
+//	config.Version = version
+//	config.Metadata.Timeout = 20 * time.Second
+//	config.ClientID = "Indexer"
+//	config.Consumer.Return.Errors = true
+//	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+//
+//	postgresConsumer := postgres.NewClient(idxConfig)
+//
+//	/**
+//	 * Setup a new Sarama consumer group
+//	 */
+//	consumer := Consumer{
+//		ready:          make(chan bool),
+//		IdxConfig:      idxConfig,
+//		ConsumerTopics: topics,
+//	}
+//
+//	consumer.PostgresCoordinator = *postgresConsumer
+//	consumer.PrimaryCoordinator = "POSTGRES"
+//
+//	brokerUri := os.Getenv("BROKER_URI")
+//	brokers := []string{brokerUri}
+//	ctx, cancel := context.WithCancel(context.Background())
+//	client, err := sarama.NewConsumerGroup(brokers, "postgres", config)
+//
+//	if err != nil {
+//		utils.Logger.Panicf("Error creating consumer group client: %v", err)
+//	}
+//
+//	consumptionIsPaused := false
+//	wg := &sync.WaitGroup{}
+//	wg.Add(1)
+//	go func() {
+//		defer wg.Done()
+//		for {
+//			// `Consume` should be called inside an infinite loop, when a
+//			// server-side rebalance happens, the consumer session will need to be
+//			// recreated to get the new claims
+//			if err := client.Consume(ctx, topics, &consumer); err != nil {
+//				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
+//					return
+//				}
+//				utils.Logger.Panicf("Error from consumer: %v", err)
+//			}
+//			// check if context was cancelled, signaling that the consumer should stop
+//			if ctx.Err() != nil {
+//				return
+//			}
+//			consumer.ready = make(chan bool)
+//		}
+//	}()
+//
+//	<-consumer.ready // Await till the consumer has been set up
+//	utils.Logger.Info("Sarama consumer up and running!...")
+//
+//	sigusr1 := make(chan os.Signal, 1)
+//	signal.Notify(sigusr1, syscall.SIGUSR1)
+//
+//	sigterm := make(chan os.Signal, 1)
+//	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+//
+//	for keepRunning {
+//		select {
+//		case <-ctx.Done():
+//			utils.Logger.Info("NewConsumer terminating: context cancelled")
+//			keepRunning = false
+//			consumer.terminateRun = true
+//		case <-sigterm:
+//			utils.Logger.Info("NewConsumer terminating: via signal")
+//			keepRunning = false
+//			consumer.terminateRun = true
+//			cancel()
+//			err := client.Close()
+//			if err != nil {
+//				return
+//			}
+//		case <-sigusr1:
+//			toggleConsumptionFlow(client, &consumptionIsPaused)
+//		}
+//	}
+//	cancel()
+//	wg.Wait()
+//	if err = client.Close(); err != nil {
+//		log.Panicf("Error closing client: %v", err)
+//	}
+//}
