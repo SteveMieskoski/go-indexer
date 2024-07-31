@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"src/types"
 	"src/utils"
@@ -52,7 +53,8 @@ func (a *pgBlockSyncTrackRepository) GetByBlockNumber(num int) (*types.PgBlockSy
 		&block.ReceiptsProcessed, &block.TransactionsProcessed, &block.TransactionCount, &block.ContractsProcessed)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
+			utils.Logger.Infof("No Rows in Get Block Result for block number %d\n", num)
 			// there were no rows, but otherwise no error occurred
 		} else {
 			utils.Logger.Errorln(err)
@@ -78,8 +80,9 @@ func (a *pgBlockSyncTrackRepository) Update(appDoc types.PgBlockSyncTrack) (*typ
 		appDoc.TransactionsProcessed, appDoc.ContractsProcessed, appDoc.TransactionCount, appDoc.Number)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// there were no rows, but otherwise no error occurred
+			utils.Logger.Infof("No Rows in Update Result for block number %d\n", appDoc.Number)
 		} else {
 			utils.Logger.Errorln(err)
 

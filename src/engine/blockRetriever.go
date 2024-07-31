@@ -197,18 +197,18 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, nil
 }
-func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (string, int64, error) {
+func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (string, string, int64, error) {
 
 	if len(address) < 42 {
 		//println("Invalid Address Length")
-		return "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
+		return "", "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
 	}
 	// Connect the client.
 	url := os.Getenv("HTTP_RPC_URL")
 	client, err := rpc.Dial(url)
 	if err != nil {
 		utils.Logger.Error("error connecting to RPC endpoint:", err)
-		return "", blockNumber, err
+		return "", "", blockNumber, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -218,16 +218,19 @@ func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (st
 
 	blockNumberHex := strconv.FormatInt(blockNumber, 16)
 
-	var lastBlock string
+	var balance string
+	var txCount string
 
-	err = client.CallContext(ctx, &lastBlock, "eth_getBalance", address, "0x"+blockNumberHex)
+	err = client.CallContext(ctx, &balance, "eth_getBalance", address, "0x"+blockNumberHex)
 
 	if err != nil {
 		utils.Logger.Error("can't get Balances:", err)
-		return "", blockNumber, err
+		return "", "", blockNumber, err
 	}
 
-	return lastBlock, blockNumber, nil
+	err = client.CallContext(ctx, &txCount, "eth_getTransactionCount", address, "0x"+blockNumberHex)
+
+	return balance, txCount, blockNumber, nil
 }
 
 func (b BlockRetriever) GetAddressDetailsBatch(addressList []string, blockNumber int64) ([]rpc.BatchElem, int64, error) {

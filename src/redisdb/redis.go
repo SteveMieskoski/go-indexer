@@ -49,7 +49,8 @@ func (r *RedisClient) Get(key string) (string, error) {
 	} else if err != nil {
 		panic(err)
 	} else {
-		fmt.Println(key, val)
+		//println("Redis Get")
+		//fmt.Println(key, val)
 		return val, err
 	}
 }

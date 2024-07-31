@@ -66,20 +66,20 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider) BlockRunner {
 }
 
 func (r *BlockRunner) Demo() {
-	balance, blockNumber, err := r.blockRetriever.GetAddressBalance("0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27", 2003762)
-	if err != nil {
-		return
-	}
-	fmt.Printf("%v, %v\n", balance, blockNumber)
-	parseInt, err := strconv.ParseInt(balance[2:], 16, 64)
-
-	CollectedAddress := types.AddressBalance{
-		Address:  "0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27",
-		LastSeen: blockNumber,
-		Balance:  parseInt,
-	}
-
-	println(CollectedAddress.String())
+	//balance, blockNumber, err := r.blockRetriever.GetAddressBalance("0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27", 2003762)
+	//if err != nil {
+	//	return
+	//}
+	//fmt.Printf("%v, %v\n", balance, blockNumber)
+	//parseInt, err := strconv.ParseInt(balance[2:], 16, 64)
+	//
+	//CollectedAddress := types.AddressBalance{
+	//	Address:  "0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27",
+	//	LastSeen: blockNumber,
+	//	Balance:  parseInt,
+	//}
+	//
+	//println(CollectedAddress.String())
 }
 
 func (r *BlockRunner) StartBlockSync() {
@@ -216,11 +216,11 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 }
 
 func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock types.MongoBlock) bool {
-	addressesToCheck := addressToCheckStruct{
-		addressSet:  mapset.NewSet[string](),
-		blockNumber: 0,
-		txCount:     int64(len(block.Transactions)),
-	}
+	//addressesToCheck := addressToCheckStruct{
+	//	addressSet:  mapset.NewSet[string](),
+	//	blockNumber: 0,
+	//	txCount:     int64(len(block.Transactions)),
+	//}
 
 	TransactionsProcessed := true
 	for _, tx := range block.Transactions {
@@ -237,19 +237,25 @@ func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock
 			}
 			utils.Logger.Infof("Error producing transaction for block %s transaction hash: %s", convertedBlock.Number, tx.Hash)
 			time.Sleep(r.produceDelay * time.Millisecond)
-		} else {
+		} /*else {
 			addressesToCheck.addressSet.Add(tx.From.String())
 			addressesToCheck.addressSet.Add(tx.To.String())
-		}
+		}*/
 	}
-	addressesToCheck.blockNumber = int64(block.Number)
+	//addressesToCheck.blockNumber = int64(block.Number)
 
-	r.processAddressesInBlock(addressesToCheck)
 	//r.processAddressesInBlock(addressesToCheck)
 	return TransactionsProcessed
 }
 
 func (r *BlockRunner) processBlockReceipts(convertedBlock types.MongoBlock, wg *sync.WaitGroup) bool {
+
+	addressesToCheck := addressToCheckStruct{
+		addressSet:  mapset.NewSet[string](),
+		blockNumber: 0,
+		txCount:     int64(len(convertedBlock.Transactions)),
+	}
+
 	ReceiptsProcessed := true
 	receipts, err := GetBlockReceipts(convertedBlock.Hash)
 
@@ -273,8 +279,20 @@ func (r *BlockRunner) processBlockReceipts(convertedBlock types.MongoBlock, wg *
 			}
 			utils.Logger.Infof("Error producing receipt for block %s transaction hash: %s", convertedBlock.Number, Receipt.TransactionHash)
 			time.Sleep(r.produceDelay * time.Millisecond)
+		} else {
+			addressesToCheck.addressSet.Add(Receipt.From.String())
+			addressesToCheck.addressSet.Add(Receipt.To.String())
+			for _, lgs := range Receipt.Logs {
+				addressesToCheck.addressSet.Add(lgs.Address.String())
+			}
 		}
 	}
+
+	num, _ := strconv.Atoi(convertedBlock.Number)
+	addressesToCheck.blockNumber = int64(num)
+
+	r.processAddressesInBlock(addressesToCheck)
+
 	return ReceiptsProcessed
 }
 
@@ -289,18 +307,27 @@ func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStr
 	for _, addr := range setIterator {
 		// excluding null address. such as with contract creation
 		if addr != "0x0" {
-			balanceHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
+			balanceHex, txCountHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
 			if err != nil {
 				utils.Logger.Errorln(err)
 				return
 			}
-			balance, err := strconv.ParseInt(balanceHex[2:], 16, 64)
+			balance, err1 := strconv.ParseInt(balanceHex[2:], 16, 64)
+			if err1 != nil {
+				balance = 0
+			}
+
+			txCount, err2 := strconv.ParseInt(txCountHex[2:], 16, 64)
+			if err2 != nil {
+				txCount = 0
+			}
 			//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
 
 			CollectedAddress := types.AddressBalance{
 				Address:  addr,
 				LastSeen: blockNumber,
 				Balance:  balance,
+				Nonce:    txCount,
 			}
 			_ = r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
 		}

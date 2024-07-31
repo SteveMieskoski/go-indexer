@@ -20,21 +20,15 @@ func Run() {
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
-	//go func() {
-	//	beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
-	//	beaconBlockRunner.StartBeaconSync()
-	//}()
+	go func() {
+		beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
+		beaconBlockRunner.StartBeaconSync()
+	}()
 
 	//runs.Demo()
 	runs.StartBlockSync()
-	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	//defer stop()
-	//
-	//select {
-	//case <-ctx.Done():
-	//	stop()
-	//	fmt.Println("signal received")
-	//	return
-	//}
+
+	//beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider(brokers, kafka.GenerateKafkaConfig))
+	//beaconBlockRunner.StartBeaconSync()
 
 }
