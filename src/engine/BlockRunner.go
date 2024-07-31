@@ -34,6 +34,9 @@ type BlockRunner struct {
 	blockSyncTrack           postgres.PgBlockSyncTrackRepository
 	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
 	pgRetryTrack             postgres.PgTrackForToRetryRepository
+	errorCount               int // track how many errors occur. If this reaches a high threshold and sinceLastError is low then possibly exit
+	sinceLastError           int // track how many successful instances occurred since last error
+	pauseRunner              *sync.WaitGroup
 	//addressesToCheck         addressToCheckStruct
 }
 
@@ -80,6 +83,8 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig types.Idx
 		newBlockSyncTrack:        createNewBlockSyncTrack,
 		produceDelay:             100,
 		pgRetryTrack:             pgRetryTrack,
+		errorCount:               0,
+		pauseRunner:              &pr,
 	}
 }
 
@@ -118,6 +123,18 @@ func (r *BlockRunner) StartBlockSync() {
 		return
 	}
 
+	errorCount, _ := r.redis.Get("retrievalErrorCount")
+	if err != nil {
+		errorCount = "0"
+		err := r.redis.Set("retrievalErrorCount", errorCount)
+		if err != nil {
+			utils.Logger.Errorln(err)
+			//return
+		}
+	}
+
+	r.errorCount, _ = strconv.Atoi(errorCount)
+
 	select {
 	case <-ctx.Done():
 		stop()
@@ -143,6 +160,7 @@ func (r *BlockRunner) listenForCurrentBlock() {
 	var wg sync.WaitGroup
 
 	for latestBlock := range blockGen {
+		r.pauseRunner.Wait()
 		utils.Logger.Infof("Recieved latest block: %d", latestBlock.Number)
 
 		block := blockRetriever.GetBlock(int(latestBlock.Number))
@@ -179,6 +197,14 @@ func (r *BlockRunner) listenForCurrentBlock() {
 		if err != nil {
 			utils.Logger.Errorln(err)
 			continue
+		}
+		err = r.redis.Set("retrievalErrorCount", r.errorCount)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+
+		if r.errorCount >= 100 {
+			r.RetryFailedRetrievals()
 		}
 	}
 
@@ -218,6 +244,7 @@ func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 		}
 
 	} else {
+		r.errorCount += 1
 		utils.Logger.Infof("Error producing BLOCK %v", block.Number)
 		numb := strconv.Itoa(int(block.Number))
 		_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
@@ -244,6 +271,7 @@ func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock
 	for _, tx := range block.Transactions {
 		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
 		if !completedTx {
+			r.errorCount += 1
 			TransactionsProcessed = false
 			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
 				DataType: types.TRANSACTION_TOPIC,
@@ -286,6 +314,7 @@ func (r *BlockRunner) processBlockReceipts(convertedBlock types.MongoBlock, wg *
 	for _, Receipt := range receipts {
 		completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
 		if !completedR {
+			r.errorCount += 1
 			ReceiptsProcessed = false
 			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
 				DataType: types.RECEIPT_TOPIC,
@@ -347,7 +376,10 @@ func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStr
 				Balance:  balance,
 				Nonce:    txCount,
 			}
-			_ = r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
+			completed := r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
+			if !completed {
+				r.errorCount += 1
+			}
 		}
 
 	}
@@ -382,7 +414,7 @@ func (r *BlockRunner) getPriorBlocks() {
 	//duration := 0
 
 	for lastBlockRetrieved < blockNumberOnSyncStart {
-
+		r.pauseRunner.Wait()
 		//start := time.Now()
 		var wg sync.WaitGroup
 
@@ -465,6 +497,10 @@ func (r *BlockRunner) getPriorBlocks() {
 		if err != nil {
 			utils.Logger.Errorln(err)
 			//return
+		}
+		err = r.redis.Set("retrievalErrorCount", r.errorCount)
+		if err != nil {
+			utils.Logger.Errorln(err)
 		}
 	}
 
@@ -564,6 +600,16 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 
 func (r *BlockRunner) RetryFailedRetrievals() {
 	utils.Logger.Info("RetryFailedRetrievals START")
+	r.pauseRunner.Add(1)
+
+	defer func() {
+		err := r.redis.Set("retrievalErrorCount", 0)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		r.pauseRunner.Done()
+	}()
+
 	blocksToRetry, _ := r.pgRetryTrack.GetByDataType(types.BLOCK_TOPIC)
 	var wg sync.WaitGroup
 	for _, tx := range blocksToRetry {
