@@ -32,6 +32,7 @@ func (a *pgSlotSyncTrackRepository) Add(appDoc types.PgSlotSyncTrack) (string, e
 values ($1, $2, $3, $4, $5, $6);`, appDoc.Hash, appDoc.Slot, appDoc.Retrieved, appDoc.Processed, appDoc.BlobsProcessed, appDoc.BlobCount)
 	if err != nil {
 		utils.Logger.Errorln(err)
+		utils.Logger.Infof("Postgres Error for SLOT: %d\n", appDoc.Slot)
 	}
 
 	return strconv.Itoa(int(appDoc.Id)), nil

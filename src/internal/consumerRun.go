@@ -1,28 +1,27 @@
 package internal
 
-import (
-	"src/kafka"
-	"src/types"
-)
+import "src/types"
 
-func ConsumerRun() {
+func ConsumerRun(idxConfig types.IdxConfigStruct) {
 
-	go func() {
-		kafka.NewMongoDbConsumer([]string{types.RECEIPT_TOPIC})
-	}()
-	go func() {
-		kafka.NewMongoDbConsumer([]string{types.TRANSACTION_TOPIC})
-	}()
-	go func() {
-		kafka.NewMongoDbConsumer([]string{types.BLOB_TOPIC})
-	}()
-	go func() {
-		kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC})
-	}()
-
-	kafka.NewMongoDbConsumer([]string{types.BLOCK_TOPIC})
+	//go func() {
+	//	kafka.NewMongoDbConsumer([]string{types.RECEIPT_TOPIC}, idxConfig)
+	//}()
+	//go func() {
+	//	kafka.NewMongoDbConsumer([]string{types.TRANSACTION_TOPIC}, idxConfig)
+	//}()
+	//go func() {
+	//	kafka.NewMongoDbConsumer([]string{types.BLOB_TOPIC}, idxConfig)
+	//}()
+	//go func() {
+	//	kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC}, idxConfig)
+	//}()
+	//
+	//kafka.NewMongoDbConsumer([]string{types.BLOCK_TOPIC}, idxConfig)
 
 	//kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC})
 	//kafka.NewMongoDbConsumer([]string{types.TRANSACTION_TOPIC})
+
+	println("ConsumerRun")
 
 }

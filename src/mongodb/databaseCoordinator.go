@@ -49,11 +49,11 @@ type databaseCoordinator struct {
 	transactionChan       chan *types.MongoTransaction
 }
 
-func NewDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, error) {
-	return newDatabaseCoordinator(settings)
+func NewDatabaseCoordinator(settings DatabaseSetting, idxConfig types.IdxConfigStruct) (DatabaseCoordinator, error) {
+	return newDatabaseCoordinator(settings, idxConfig)
 }
 
-func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, error) {
+func newDatabaseCoordinator(settings DatabaseSetting, idxConfig types.IdxConfigStruct) (DatabaseCoordinator, error) {
 
 	blockDbSettings := &DatabaseSetting{
 		Url:        settings.Url,
@@ -85,7 +85,7 @@ func newDatabaseCoordinator(settings DatabaseSetting) (DatabaseCoordinator, erro
 		Collection: "transactions",
 	}
 
-	pg := postgres.NewClient()
+	pg := postgres.NewClient(idxConfig)
 
 	client, err := GetClient(settings)
 	if err != nil {

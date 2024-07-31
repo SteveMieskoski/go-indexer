@@ -6,6 +6,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"os"
 	"os/signal"
+	"src/types"
+	"src/utils"
+
 	//"src/utils"
 	"syscall"
 )
@@ -87,7 +90,7 @@ type PostgresDB struct {
 	//clients []AClient
 }
 
-func NewClient() *PostgresDB {
+func NewClient(idxConfig types.IdxConfigStruct) *PostgresDB {
 
 	dbpool, err := pgxpool.New(context.Background(), os.Getenv("RAW_GO_POSTGRES_STRING"))
 	if err != nil {
@@ -107,23 +110,25 @@ func NewClient() *PostgresDB {
 		}
 	}()
 
-	// DROPS AND REGENERATES TABLES
-	//_, err = dbpool.Exec(context.Background(), createAddressesTable)
-	//if err != nil {
-	//	utils.Logger.Errorln(err)
-	//}
-	//_, err = dbpool.Exec(context.Background(), createBlockSyncTable)
-	//if err != nil {
-	//	utils.Logger.Errorln(err)
-	//}
-	//_, err = dbpool.Exec(context.Background(), createSlotSyncTable)
-	//if err != nil {
-	//	utils.Logger.Errorln(err)
-	//}
-	//_, err = dbpool.Exec(context.Background(), createTrackForRetryTable)
-	//if err != nil {
-	//	utils.Logger.Errorln(err)
-	//}
+	if idxConfig.ClearPostgres {
+		// DROPS AND REGENERATES TABLES
+		_, err = dbpool.Exec(context.Background(), createAddressesTable)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		_, err = dbpool.Exec(context.Background(), createBlockSyncTable)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		_, err = dbpool.Exec(context.Background(), createSlotSyncTable)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		_, err = dbpool.Exec(context.Background(), createTrackForRetryTable)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+	}
 
 	return &PostgresDB{client: dbpool}
 }

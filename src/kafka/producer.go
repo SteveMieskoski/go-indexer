@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"src/types"
 	"src/utils"
+	"strconv"
 	//"strconv"
 	"sync"
 	"syscall"
@@ -62,7 +63,7 @@ func GenerateKafkaConfig() *sarama.Config {
 	return config
 }
 
-func NewProducerProvider(brokers []string, producerConfigurationProvider func() *sarama.Config) *ProducerProvider {
+func NewProducerProvider(brokers []string, producerConfigurationProvider func() *sarama.Config, idxConfig types.IdxConfigStruct) *ProducerProvider {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -74,16 +75,27 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 		panic(err)
 	}
 
-	// DELETES/CLEARS EXISTING TOPICS
-	//versionNum, _ := strconv.ParseInt(version, 10, 0)
-	//_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
-	//	Version: int16(versionNum),
-	//	Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
-	//})
-	//if err != nil {
-	//	return nil
-	//}
-	// DeleteTopicsRequest
+	if idxConfig.ClearKafka {
+		// DELETES/CLEARS EXISTING TOPICS
+		utils.Logger.Infof("DELETING/CLEARING EXISTING TOPICS")
+		versionNum, _ := strconv.ParseInt(version, 10, 0)
+		_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
+			Version: int16(versionNum),
+			Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
+		})
+		if err != nil {
+			utils.Logger.Errorf("Producer: unable to delete topics %s\n", err)
+		}
+		//utils.Logger.Infof("waiting for Kafka to finish clearing")
+		//time.Sleep(10 * time.Second)
+		//broker.CreateTopics(&sarama.CreateTopicsRequest{
+		//	Version:      0,
+		//	TopicDetails: nil,
+		//	Timeout:      0,
+		//	ValidateOnly: false,
+		//})
+		// DeleteTopicsRequest
+	}
 
 	provider := &ProducerProvider{}
 	provider.ProducerProvider = func() sarama.AsyncProducer {

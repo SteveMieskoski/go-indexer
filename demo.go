@@ -1,129 +1,101 @@
 package main
 
-import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"src/types"
-)
-
-//type BeaconBlockHeader struct {
-//	Slot          string `json:"slot"`
-//	ProposerIndex string `json:"proposer_index"`
-//	ParentRoot    string `json:"parent_root"`
-//	StateRoot     string `json:"state_root"`
-//	BodyRoot      string `json:"body_root"`
+//type IdxConfig struct {
+//	ClearKafka    bool `json:"clear_kafka"`
+//	ClearPostgres bool `json:"clear_postgres"`
+//	DisableBeacon bool `json:"disable_beacon"`
+//	RunAsProducer bool `json:"run_as_producer"`
 //}
 //
-//type SignedBeaconBlockHeader struct {
-//	Message   *BeaconBlockHeader `json:"message"`
-//	Signature string             `json:"signature"`
+//func (s IdxConfig) String() string {
+//	//bytes, _ := json.Marshal(s)
+//	bytes, _ := json.MarshalIndent(s, "", "   ")
+//	return string(bytes)
 //}
-//
-//type Sidecar struct {
-//	Index                    string                   `json:"index"`
-//	Blob                     string                   `json:"blob"`
-//	SignedBeaconBlockHeader  *SignedBeaconBlockHeader `json:"signed_block_header"`
-//	KzgCommitment            string                   `json:"kzg_commitment"`
-//	KzgProof                 string                   `json:"kzg_proof"`
-//	CommitmentInclusionProof []string                 `json:"kzg_commitment_inclusion_proof"`
-//}
-//
-//type SidecarsResponse struct {
-//	Data []*Sidecar `json:"data"`
-//}
-
-type SignedBlock struct {
-	Message   json.RawMessage `json:"message"` // represents the block values based on the version
-	Signature string          `json:"signature"`
-}
-
-type GetBlockResponse struct {
-	Data *SignedBlock `json:"data"`
-}
-
-type BeaconBlockHeader struct {
-	Slot          string `json:"slot"`
-	ProposerIndex string `json:"proposer_index"`
-	ParentRoot    string `json:"parent_root"`
-	StateRoot     string `json:"state_root"`
-	BodyRoot      string `json:"body_root"`
-}
-
-type SignedBeaconBlockHeader struct {
-	Message   *BeaconBlockHeader `json:"message"`
-	Signature string             `json:"signature"`
-}
-
-type SignedBeaconBlockHeaderContainer struct {
-	Header    *SignedBeaconBlockHeader `json:"header"`
-	Root      string                   `json:"root"`
-	Canonical bool                     `json:"canonical"`
-}
-
-type GetBlockHeadersResponse struct {
-	Data                []*SignedBeaconBlockHeaderContainer `json:"data"`
-	ExecutionOptimistic bool                                `json:"execution_optimistic"`
-	Finalized           bool                                `json:"finalized"`
-}
 
 func main() {
-
-	res, err := http.Get("http://127.0.0.1:3500/eth/v1/beacon/headers")
-	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		os.Exit(1)
-	}
-
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Printf("client: could not read response body: %s\n", err)
-		os.Exit(1)
-	}
-	//fmt.Printf("client: response body: %s\n", resBody[0:60000])
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Printf("client: could not read response body: %s\n", err)
-		}
-	}(res.Body)
-
-	var arr *types.BeaconHeadersResponse
-	//var arr *SidecarsResponse
-	if err := json.Unmarshal([]byte(resBody), &arr); err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("json map: %v\n", arr)
-	fmt.Printf("json map: %v\n", arr.Data[0])
-	//// TODO RESOLVE ->
-	//// https://pkg.go.dev/github.com/prysmaticlabs/prysm/v4@v4.2.1/beacon-chain/rpc/eth/beacon#SignedBlock
-	//// https://github.com/prysmaticlabs/prysm/blob/v4.2.1/beacon-chain/rpc/eth/beacon/structs.go#L138
-	//var dat *types.SignedBeaconBlockHeader
-	//if err := json.Unmarshal(*arr.Data[0], &dat); err != nil {
-	//	panic(err)
-	//}
-
-	//fmt.Printf("json map: %v\n", arr.Data[0].Header)
-	//fmt.Println(arr)
-	//fmt.Printf("json map: %v\n", arr.Data[0].Root)
-	//type Data struct {
-	//	data []types.Blob
-	//}
-	////var data Data
-	////var data map[string]interface{}
-	//var data []interface{}
-	//decoder := json.NewDecoder(res.Body)
 	//
-	//err = decoder.Decode(&data)
-	//if err != nil {
-	//	fmt.Printf("client: could not read response body: %s\n", err)
-	//	return
+	//var config IdxConfig
+	//
+	//app := &cli.App{
+	//	Flags: []cli.Flag{
+	//		&cli.BoolFlag{
+	//			Name:        "clear-kafka",
+	//			Value:       false,
+	//			Usage:       "thing",
+	//			Destination: &config.ClearKafka,
+	//		},
+	//		&cli.BoolFlag{
+	//			Name:        "clear-postgres",
+	//			Value:       false,
+	//			Usage:       "thing",
+	//			Destination: &config.ClearPostgres,
+	//		},
+	//		&cli.BoolFlag{
+	//			Name:        "disable-beacon",
+	//			Value:       false,
+	//			Usage:       "thing",
+	//			Destination: &config.DisableBeacon,
+	//		},
+	//		&cli.BoolFlag{
+	//			Name:        "run-as-producer",
+	//			Value:       true,
+	//			Usage:       "thing",
+	//			Destination: &config.RunAsProducer,
+	//		},
+	//	},
+	//	Action: func(cCtx *cli.Context) error {
+	//		//name := "Nefertiti"
+	//		//if cCtx.NArg() > 0 {
+	//		//	name = cCtx.Args().Get(0)
+	//		//}
+	//		//config.ClearPostgres = cCtx.Bool("clear.kafka")
+	//		//config.ClearKafka = cCtx.Bool("clear.postgres")
+	//		//config.DisableBeacon = cCtx.Bool("disable-beacon")
+	//		//config.RunAsProducer = cCtx.Bool("run-as-producer")
+	//		//if cCtx.String("lang") == "spanish" {
+	//		//	fmt.Println("Hola", name)
+	//		//} else {
+	//		//	fmt.Println("Hello", name)
+	//		//}
+	//		if cCtx.Bool("clear-kafka") {
+	//			fmt.Println("clear.kafka")
+	//		} else {
+	//			fmt.Println("No clear.kafka")
+	//		}
+	//		if cCtx.Bool("clear-postgres") {
+	//			fmt.Println("clear.postgres")
+	//		} else {
+	//			fmt.Println("No clear.postgres")
+	//		}
+	//		if cCtx.Bool("run-as-producer") {
+	//			fmt.Println("Do run-as-producer")
+	//		} else {
+	//			fmt.Println("RUN NOT AS PRODUCER")
+	//		}
+	//		if cCtx.Bool("disable-beacon") {
+	//			fmt.Println("Do disable-beacon")
+	//		} else {
+	//			clearKafka()
+	//			fmt.Println("NO disable-beacon")
+	//		}
+	//		fmt.Println("Parsing CLI Flags End")
+	//		println(config.String())
+	//		return nil
+	//	},
 	//}
 	//
-	////println(data[0].KzgCommitment)
-	//fmt.Printf("json map: %v\n", data)
+	//if err := app.Run(os.Args); err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//println(config.String())
 }
+
+//func clearKafka() {
+//	fmt.Println("Clear Kafka")
+//}
+//
+//func clearPostgres() {
+//	fmt.Println("Clear Postgres")
+//}

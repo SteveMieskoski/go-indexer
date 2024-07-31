@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/signal"
 	"src/kafka"
 	"src/postgres"
@@ -26,11 +27,14 @@ type BeaconBlockRunner struct {
 	produceDelay             time.Duration
 }
 
-func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider) BeaconBlockRunner {
+func NewBeaconBlockRunner(idxConfig types.IdxConfigStruct) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient(2)
-	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient())
-	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
+	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+
+	brokers := os.Getenv("BROKER_URI")
+	producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,
@@ -201,6 +205,10 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 
 		wg.Wait()
 
+		err := b.redis.Set("lastPriorSlotRetrieved", lastSlotRetrieved)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
 		//time.Sleep(100 * time.Millisecond)
 		// TODO: Revisit sending a number of calls all at once, but need to sync or respond to the
 		// TODO: pace of the BlockRunner because when both are trying to commit to Kafka several fail

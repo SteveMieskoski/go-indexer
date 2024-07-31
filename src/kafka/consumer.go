@@ -35,7 +35,7 @@ type Consumer struct {
 }
 
 // need topics[topic] = handler
-func NewPostgresConsumer(topics []string) {
+func NewPostgresConsumer(topics []string, idxConfig types.IdxConfigStruct) {
 
 	keepRunning := true
 	utils.Logger.Info("Starting a new Sarama consumer")
@@ -59,7 +59,7 @@ func NewPostgresConsumer(topics []string) {
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
-	postgresConsumer := postgres.NewClient()
+	postgresConsumer := postgres.NewClient(idxConfig)
 
 	/**
 	 * Setup a new Sarama consumer group
@@ -138,7 +138,7 @@ func NewPostgresConsumer(topics []string) {
 	}
 }
 
-func NewMongoDbConsumer(topics []string) {
+func NewMongoDbConsumer(topics []string, idxConfig types.IdxConfigStruct) {
 
 	sigusr1 := make(chan os.Signal, 1)
 	signal.Notify(sigusr1, syscall.SIGUSR1)
@@ -203,7 +203,7 @@ func NewMongoDbConsumer(topics []string) {
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
-	DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings)
+	DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings, idxConfig)
 	consumer.DatabaseCoordinator = DbCoordinator
 	consumer.PrimaryCoordinator = "MONGO"
 

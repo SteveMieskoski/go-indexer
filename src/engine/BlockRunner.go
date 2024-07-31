@@ -38,21 +38,37 @@ type BlockRunner struct {
 	//addressesToCheck         addressToCheckStruct
 }
 
-func NewBlockRunner() BlockRunner {
+func NewBlockRunner(idxConfig types.IdxConfigStruct) BlockRunner {
 
 	redisClient := redisdb.NewClient(1)
 	redisTrack := redisdb.NewClient(1)
 	blockRetriever := NewBlockRetriever(*redisClient)
-	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient())
 
-	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient())
+	// Reset Block Tracking in Redis
+	if idxConfig.ClearRedis {
+		_, err := redisClient.Del("blockNumberOnSyncStart")
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		_, err = redisClient.Del("priorCurrentBlock")
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		_, err = redisClient.Del("lastPriorBlockRetrieved")
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+	}
+	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+
+	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
 	createNewBlockSyncTrack := func() postgres.PgBlockSyncTrackRepository {
-		return postgres.NewBlockSyncTrackRepository(postgres.NewClient())
+		return postgres.NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
 	}
 
 	brokers := os.Getenv("BROKER_URI")
-	producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig)
+	producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
 	return BlockRunner{
 		priorRetrievalInProgress: false,
@@ -447,6 +463,11 @@ func (r *BlockRunner) getPriorBlocks() {
 		//duration = int(time.Since(start))
 		//println(duration)
 		lastBlockRetrieved = batchEndBlock + 1
+		err = r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
+		if err != nil {
+			utils.Logger.Errorln(err)
+			//return
+		}
 	}
 
 	utils.Logger.Info("exiting: getPriorBlock External")
