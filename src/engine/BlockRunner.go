@@ -413,18 +413,39 @@ func (r *BlockRunner) getPriorBlocks() {
 	goodRun := true
 	//duration := 0
 
+	blockTimerCount := 0
+	blockTimerAverage := 0
+
 	for lastBlockRetrieved < blockNumberOnSyncStart {
 		r.pauseRunner.Wait()
-		//start := time.Now()
+		start := time.Now()
 		var wg sync.WaitGroup
 
 		if !goodRun {
 			blocksPerBatch = 10
-		} else if blocksPerBatch < 300 {
+		} /*else if blocksPerBatch < 210 {
 			blocksPerBatch = blocksPerBatch + 10
-		} /*else if blocksPerBatch < 1000 {
-			blocksPerBatch = blocksPerBatch + 1
 		}*/
+
+		// TODO: Modify this to use a rolling window for the average
+		if goodRun && blockTimerAverage > 5 && blocksPerBatch > 20 {
+			blocksPerBatch = blocksPerBatch - 10
+
+		} else if goodRun && blockTimerAverage < 5 {
+			blocksPerBatch = blocksPerBatch + 10
+		}
+		if blockTimerCount >= 5 {
+			blockTimerCount = 0
+			blockTimerAverage = 0
+		}
+
+		//if !goodRun {
+		//	blocksPerBatch = 10
+		//} else if blocksPerBatch < 300 {
+		//	blocksPerBatch = blocksPerBatch + 10
+		//} else if blocksPerBatch < 1000 {
+		//	blocksPerBatch = blocksPerBatch + 1
+		//}
 		// was getting errors, maybe from above, need to check with the mem error
 		//if duration > 900000000 && blocksPerBatch > 20 {
 		//	blocksPerBatch = blocksPerBatch - 5
@@ -490,9 +511,15 @@ func (r *BlockRunner) getPriorBlocks() {
 		}
 
 		wg.Wait()
-		//duration = int(time.Since(start))
-		//println(duration)
+
+		// monitor retrieval timing
+		blockTimerCount += 1
+		duration := time.Since(start).Seconds()
+		blockTimerAverage = (blockTimerAverage + int(duration)) / blockTimerCount
+		fmt.Printf("Batch Retreival took: %f for %d blocks\n", duration, batchEndBlock-lastBlockRetrieved)
+
 		lastBlockRetrieved = batchEndBlock + 1
+
 		err = r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
 		if err != nil {
 			utils.Logger.Errorln(err)
