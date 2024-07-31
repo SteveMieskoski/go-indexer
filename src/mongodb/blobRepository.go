@@ -58,12 +58,12 @@ func (app *blobRepository) Add(appDoc types.MongoBlob, ctx context.Context) (str
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	utils.Logger.Info("LogRepository - ErrNilCursor Check")
+	//utils.Logger.Info("LogRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	utils.Logger.Info("LogRepository - Get Inserted Document _Id Check")
+	//utils.Logger.Info("LogRepository - Get Inserted Document _Id Check")
 	if oidResult, ok := insertResult.InsertedID.(string); !ok {
 		return "-2", err
 	} else {

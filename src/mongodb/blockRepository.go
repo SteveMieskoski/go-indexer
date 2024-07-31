@@ -35,8 +35,8 @@ func (app *blockRepository) Add(appDoc types.MongoBlock, ctx context.Context) (s
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	utils.Logger.Info(err)
-	utils.Logger.Info("BlockRepository - ErrNilCursor Check")
+	//utils.Logger.Info(err)
+	//utils.Logger.Info("BlockRepository - ErrNilCursor Check")
 	if err != nil {
 		if !mongo.IsDuplicateKeyError(err) {
 			utils.Logger.Fatal(err)
@@ -46,8 +46,8 @@ func (app *blockRepository) Add(appDoc types.MongoBlock, ctx context.Context) (s
 		}
 	}
 
-	utils.Logger.Info(insertResult.InsertedID)
-	utils.Logger.Info("BlockRepository - Get Inserted Document _Id Check")
+	//utils.Logger.Info(insertResult.InsertedID)
+	//utils.Logger.Info("BlockRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {

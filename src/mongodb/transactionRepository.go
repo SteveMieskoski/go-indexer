@@ -58,12 +58,12 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	utils.Logger.Info("TransactionRepository - ErrNilCursor Check")
+	//utils.Logger.Info("TransactionRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	utils.Logger.Info("TransactionRepository - Get Inserted Document _Id Check")
+	//utils.Logger.Info("TransactionRepository - Get Inserted Document _Id Check")
 	if oidResult, ok := insertResult.InsertedID.(string); !ok {
 		return "-2", err
 	} else {

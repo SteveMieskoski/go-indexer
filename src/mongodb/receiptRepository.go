@@ -71,12 +71,12 @@ func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context
 		}
 	}
 
-	utils.Logger.Info("ReceiptRepository - ErrNilCursor Check")
+	//utils.Logger.Info("ReceiptRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	utils.Logger.Info("ReceiptRepository - Get Inserted Document _Id Check")
+	//utils.Logger.Info("ReceiptRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {
