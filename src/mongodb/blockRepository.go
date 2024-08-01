@@ -35,8 +35,6 @@ func (app *blockRepository) Add(appDoc types.MongoBlock, ctx context.Context) (s
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	utils.Logger.Info(err)
-	utils.Logger.Info("BlockRepository - ErrNilCursor Check")
 	if err != nil {
 		if !mongo.IsDuplicateKeyError(err) {
 			utils.Logger.Fatal(err)
@@ -46,8 +44,6 @@ func (app *blockRepository) Add(appDoc types.MongoBlock, ctx context.Context) (s
 		}
 	}
 
-	utils.Logger.Info(insertResult.InsertedID)
-	utils.Logger.Info("BlockRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {
@@ -66,8 +62,6 @@ func (app *blockRepository) List(count int, ctx context.Context) ([]*types.Mongo
 	findOptions := options.Find()
 	findOptions.SetLimit(int64(count))
 
-	//logrus.Infof("FindOptions %d, DbName %s, Url %s", count, app.config.DbName, app.config.Url)
-
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	cursor, err := collection.Find(ctx, bson.D{}, findOptions)
@@ -76,10 +70,8 @@ func (app *blockRepository) List(count int, ctx context.Context) ([]*types.Mongo
 	}
 
 	var appDocs []*types.MongoBlock
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
+
 	for cursor.Next(ctx) {
-		// create a value into which the single document can be decoded
 		var elem types.MongoBlock
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)

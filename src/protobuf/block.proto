@@ -15,35 +15,56 @@ message Block {
   string ParentHash = 9;
   uint64 Timestamp = 10;
 
-  message Transaction {
-    string BlockHash = 1;
-    string BlockNumber = 2;
-    string From = 3;
-    string Gas = 4;
-    string GasPrice = 5;
-    string GasUsed = 6;
-    bool HasToken = 7;
-    string Hash = 8;
-    string Input = 9;
-    bool IsError = 10;
-    string MaxFeePerGas = 11;
-    string MaxPriorityFeePerGas = 12;
-    uint64 Nonce = 13;
-    uint64 Timestamp = 14;
-    string To = 15;
-    string TransactionIndex = 16;
-    string TransactionType = 17;
-    string Value = 18;
-    string Message = 19;
-    string V = 20;
-    string R = 21;
-    string S = 22;
-    string YParity = 23;
-  }
+
 
   repeated Transaction Transactions = 11;
 
   repeated string Uncles = 12;
   repeated string Withdrawals = 13;
   string Number = 14;
+  string BlobGasUsed = 15;
+  string ExcessBlobGas = 16;
+  string ParentBeaconBlockRoot = 17;
+  string ReceiptsRoot = 18;
+  string StateRoot = 19;
+}
+
+message Transaction {
+  string BlockHash = 1;
+  string BlockNumber = 2;
+  string From = 3;
+  string Gas = 4;
+  string GasPrice = 5;
+  string GasUsed = 6;
+  bool HasToken = 7;
+  string Hash = 8;
+  string Input = 9;
+  bool IsError = 10;
+  string MaxFeePerGas = 11;
+  string MaxPriorityFeePerGas = 12;
+  uint64 Nonce = 13;
+  uint64 Timestamp = 14;
+  string To = 15;
+  string TransactionIndex = 16;
+  string TransactionType = 17;
+  string Value = 18;
+  string Message = 19;
+  string V = 20;
+  string R = 21;
+  string S = 22;
+  string YParity = 23;
+  repeated AccessList AccessLists = 24;
+}
+
+message AccessList {
+  string Address = 1;
+  repeated string StorageKeys = 2;
+}
+
+message AddressDetails {
+  string Address = 1;
+  uint64 Nonce = 2;
+  bool IsContract = 3;
+  uint64 Balance = 4;
+  uint64 LastSeen = 5;
 }

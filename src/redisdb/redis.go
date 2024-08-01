@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	redis "github.com/redis/go-redis/v9"
+	"os"
 	"time"
 )
 
@@ -11,13 +12,14 @@ type RedisClient struct {
 	client *redis.Client
 }
 
-func NewClient() *RedisClient {
+func NewClient(db int) *RedisClient {
 	//ctx := context.Background()
 
+	uri := os.Getenv("REDIS_URI")
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     uri,
 		Password: "", // no password set
-		DB:       0,  // use default DB
+		DB:       db, // use default DB
 	})
 
 	return &RedisClient{
@@ -42,12 +44,13 @@ func (r *RedisClient) Get(key string) (string, error) {
 	val, err := r.client.Get(ctx, key).Result()
 
 	if err == redis.Nil {
-		fmt.Println("does not exist", key)
+		//fmt.Println("does not exist", key)
 		return val, err
 	} else if err != nil {
 		panic(err)
 	} else {
-		fmt.Println(key, val)
+		//println("Redis Get")
+		//fmt.Println(key, val)
 		return val, err
 	}
 }
@@ -90,6 +93,21 @@ func (r *RedisClient) GetAs(key string, getType interface{}) (any, error) {
 	} else {
 		fmt.Println("key2", val)
 		return val2, err
+	}
+}
+
+func (r *RedisClient) Del(key string) (int64, error) {
+	ctx := context.Background()
+	val, err := r.client.Del(ctx, key).Result()
+
+	if err == redis.Nil {
+		//fmt.Println("does not exist", key)
+		return val, err
+	} else if err != nil {
+		panic(err)
+	} else {
+		fmt.Println(key, val)
+		return val, err
 	}
 }
 

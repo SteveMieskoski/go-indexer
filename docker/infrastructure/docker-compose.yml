@@ -1,0 +1,35 @@
+
+version: '3'
+services:
+  zookeeper:
+    extends:
+      service: zookeeper
+      file: ../services/zookeeper.yml
+
+  broker:
+#    network_mode: host
+    depends_on:
+      - zookeeper
+    extends:
+      service: broker
+      file: ../services/broker.yml
+
+  postgres-db:
+#    network_mode: host
+    extends:
+      service: postgres-db
+      file: ../services/postgres.yml
+
+  mongo-db:
+#    network_mode: host
+    extends:
+      service: mongo-db
+      file: ../services/mongodb.yml
+
+  redis-db:
+#    network_mode: host
+    extends:
+      service: redis-db
+      file: ../services/redis.yml
+
+

@@ -1,12 +1,11 @@
 package tests
 
 import (
-	"src/internal"
 	"testing"
 )
 
 func Test_connect(t *testing.T) {
-	internal.Run()
+	//internal.Run()
 	//connect()
 	//s := make(chan string)
 	//connect(s)

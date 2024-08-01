@@ -14,17 +14,7 @@ message Receipt {
   string GasUsed = 7;
   bool IsError = 8;
 
-  message Log {
-    string Address = 1;
-    string BlockHash = 2;
-    string BlockNumber = 3;
-    string Data = 4;
-    string LogIndex = 5;
-    uint64 Timestamp = 6;
-    repeated string Topics = 7;
-    string TransactionHash = 8;
-    string TransactionIndex = 9;
-  }
+
 
   repeated Log Logs = 9;
   string Status = 10;
@@ -32,4 +22,16 @@ message Receipt {
   string TransactionHash = 12;
   string TransactionIndex = 13;
 
+}
+
+message Log {
+  string Address = 1;
+  string BlockHash = 2;
+  string BlockNumber = 3;
+  string Data = 4;
+  string LogIndex = 5;
+  uint64 Timestamp = 6;
+  repeated string Topics = 7;
+  string TransactionHash = 8;
+  string TransactionIndex = 9;
 }

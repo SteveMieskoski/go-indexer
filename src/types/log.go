@@ -36,7 +36,7 @@ func (s Log) String() string {
 	return string(bytes)
 }
 
-func (s Log) FromGoType(lg Log) MongoLog {
+func (s Log) MongoFromGoType(lg Log) MongoLog {
 
 	var convertedTopics []string
 	for _, t := range lg.Topics {
@@ -56,10 +56,10 @@ func (s Log) FromGoType(lg Log) MongoLog {
 	}
 }
 
-func (s Log) ProtobufFromGoType(lg Log) protobufLocal.Receipt_Log {
-	logString := s.FromGoType(lg)
+func (s Log) ProtobufFromGoType(lg Log) protobufLocal.Log {
+	logString := s.MongoFromGoType(lg)
 
-	return protobufLocal.Receipt_Log{
+	return protobufLocal.Log{
 		Address:          logString.Address,
 		BlockHash:        logString.BlockHash,
 		BlockNumber:      logString.BlockNumber,
@@ -72,9 +72,9 @@ func (s Log) ProtobufFromGoType(lg Log) protobufLocal.Receipt_Log {
 	}
 }
 
-func (s Log) MongoFromProtobufType(lg protobufLocal.Receipt_Log) MongoLog {
+func (s Log) MongoFromProtobufType(lg protobufLocal.Log) *MongoLog {
 
-	return MongoLog{
+	return &MongoLog{
 		Address:          lg.Address,
 		BlockHash:        lg.BlockHash,
 		BlockNumber:      lg.BlockNumber,
@@ -87,9 +87,9 @@ func (s Log) MongoFromProtobufType(lg protobufLocal.Receipt_Log) MongoLog {
 	}
 }
 
-func (s Log) ProtobufFromMongoType(lg MongoLog) *protobufLocal.Receipt_Log {
+func (s Log) ProtobufFromMongoType(lg MongoLog) *protobufLocal.Log {
 
-	return &protobufLocal.Receipt_Log{
+	return &protobufLocal.Log{
 		Address:          lg.Address,
 		BlockHash:        lg.BlockHash,
 		BlockNumber:      lg.BlockNumber,

@@ -32,32 +32,40 @@ type Transaction struct {
 	S                    string         `json:"s"`
 	YParity              string         `json:"yParity"`
 	Message              string         `json:"-"`
+	AccessList           []AccessList   `json:"AccessList"`
 }
 
 type MongoTransaction struct {
-	BlockHash            string `bson:"blockHash" json:"blockHash"`
-	BlockNumber          string `bson:"blockNumber" json:"blockNumber"`
-	From                 string `bson:"from" json:"from"`
-	Gas                  string `bson:"gas" json:"gas"`
-	GasPrice             string `bson:"gasPrice" json:"gasPrice"`
-	GasUsed              string `bson:"gasUsed" json:"gasUsed"`
-	HasToken             bool   `bson:"hasToken" json:"hasToken"`
-	Hash                 string `bson:"hash" json:"hash"`
-	Input                string `bson:"input" json:"input"`
-	IsError              bool   `bson:"isError" json:"isError"`
-	MaxFeePerGas         string `bson:"maxFeePerGas" json:"maxFeePerGas"`
-	MaxPriorityFeePerGas string `bson:"maxPriorityFeePerGas" json:"maxPriorityFeePerGas"`
-	Nonce                uint64 `bson:"nonce" json:"nonce"`
-	Timestamp            uint64 `bson:"timestamp" json:"timestamp"`
-	To                   string `bson:"to" json:"to"`
-	TransactionIndex     string `bson:"transactionIndex" json:"transactionIndex"`
-	TransactionType      string `bson:"type" json:"type"`
-	Value                string `bson:"value" json:"value"`
-	Message              string `bson:"message" json:"message"`
-	V                    string `bson:"v" json:"v"`
-	R                    string `bson:"r" json:"r"`
-	S                    string `bson:"s" json:"s"`
-	YParity              string `bson:"yParity" json:"yParity"`
+	Id                   string            `bson:"_id" json:"_id"`
+	BlockHash            string            `bson:"blockHash" json:"blockHash"`
+	BlockNumber          string            `bson:"blockNumber" json:"blockNumber"`
+	From                 string            `bson:"from" json:"from"`
+	Gas                  string            `bson:"gas" json:"gas"`
+	GasPrice             string            `bson:"gasPrice" json:"gasPrice"`
+	GasUsed              string            `bson:"gasUsed" json:"gasUsed"`
+	HasToken             bool              `bson:"hasToken" json:"hasToken"`
+	Hash                 string            `bson:"hash" json:"hash"`
+	Input                string            `bson:"input" json:"input"`
+	IsError              bool              `bson:"isError" json:"isError"`
+	MaxFeePerGas         string            `bson:"maxFeePerGas" json:"maxFeePerGas"`
+	MaxPriorityFeePerGas string            `bson:"maxPriorityFeePerGas" json:"maxPriorityFeePerGas"`
+	Nonce                uint64            `bson:"nonce" json:"nonce"`
+	Timestamp            uint64            `bson:"timestamp" json:"timestamp"`
+	To                   string            `bson:"to" json:"to"`
+	TransactionIndex     string            `bson:"transactionIndex" json:"transactionIndex"`
+	TransactionType      string            `bson:"type" json:"type"`
+	Value                string            `bson:"value" json:"value"`
+	Message              string            `bson:"message" json:"message"`
+	V                    string            `bson:"v" json:"v"`
+	R                    string            `bson:"r" json:"r"`
+	S                    string            `bson:"s" json:"s"`
+	YParity              string            `bson:"yParity" json:"yParity"`
+	AccessList           []MongoAccessList `json:"AccessList"`
+}
+
+func (s MongoTransaction) String() string {
+	bytes, _ := json.Marshal(s)
+	return string(bytes)
 }
 
 func (s Transaction) String() string {
@@ -65,9 +73,15 @@ func (s Transaction) String() string {
 	return string(bytes)
 }
 
-func (s Transaction) FromGoType(tx Transaction) MongoTransaction {
+func (s Transaction) MongoFromGoType(tx Transaction) MongoTransaction {
+
+	var convertedAccessList []MongoAccessList
+	for _, t := range tx.AccessList {
+		convertedAccessList = append(convertedAccessList, AccessList{}.MongoFromGoType(t))
+	}
 
 	return MongoTransaction{
+		Id:                   tx.Hash.String(),
 		BlockHash:            tx.BlockHash.String(),
 		BlockNumber:          strconv.FormatUint(uint64(tx.BlockNumber), 10),
 		From:                 tx.From.String(),
@@ -91,13 +105,20 @@ func (s Transaction) FromGoType(tx Transaction) MongoTransaction {
 		S:                    tx.S,
 		YParity:              tx.YParity,
 		Message:              "",
+		AccessList:           convertedAccessList,
 	}
 }
 
-func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Block_Transaction {
-	txString := s.FromGoType(tx)
+func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Transaction {
+	txString := s.MongoFromGoType(tx)
 
-	return protobufLocal.Block_Transaction{
+	var convertedAccessList []*protobufLocal.AccessList
+
+	for _, v := range txString.AccessList {
+		convertedAccessList = append(convertedAccessList, AccessList{}.ProtobufFromMongoType(v))
+	}
+
+	return protobufLocal.Transaction{
 		BlockHash:            txString.BlockHash,
 		BlockNumber:          txString.BlockNumber,
 		From:                 txString.From,
@@ -121,12 +142,20 @@ func (s Transaction) ProtobufFromGoType(tx Transaction) protobufLocal.Block_Tran
 		R:                    txString.R,
 		S:                    txString.S,
 		YParity:              txString.YParity,
+		AccessLists:          convertedAccessList,
 	}
 }
 
-func (s Transaction) MongoFromProtobufType(tx protobufLocal.Block_Transaction) MongoTransaction {
+func (s Transaction) MongoFromProtobufType(tx protobufLocal.Transaction) *MongoTransaction {
 
-	return MongoTransaction{
+	var convertedAccessList []MongoAccessList
+	for _, log := range tx.AccessLists {
+		result := AccessList{}.MongoFromProtobufType(*log)
+		convertedAccessList = append(convertedAccessList, *result)
+	}
+
+	return &MongoTransaction{
+		Id:                   tx.Hash,
 		BlockHash:            tx.BlockHash,
 		BlockNumber:          tx.BlockNumber,
 		From:                 tx.From,
@@ -150,12 +179,19 @@ func (s Transaction) MongoFromProtobufType(tx protobufLocal.Block_Transaction) M
 		R:                    tx.R,
 		S:                    tx.S,
 		YParity:              tx.YParity,
+		AccessList:           convertedAccessList,
 	}
 }
 
-func (s Transaction) ProtobufFromMongoType(txString MongoTransaction) *protobufLocal.Block_Transaction {
+func (s Transaction) ProtobufFromMongoType(txString MongoTransaction) *protobufLocal.Transaction {
 
-	return &protobufLocal.Block_Transaction{
+	var convertedAccessList []*protobufLocal.AccessList
+
+	for _, v := range txString.AccessList {
+		convertedAccessList = append(convertedAccessList, AccessList{}.ProtobufFromMongoType(v))
+	}
+
+	return &protobufLocal.Transaction{
 		BlockHash:            txString.BlockHash,
 		BlockNumber:          txString.BlockNumber,
 		From:                 txString.From,
@@ -179,5 +215,6 @@ func (s Transaction) ProtobufFromMongoType(txString MongoTransaction) *protobufL
 		R:                    txString.R,
 		S:                    txString.S,
 		YParity:              txString.YParity,
+		AccessLists:          convertedAccessList,
 	}
 }

@@ -8,14 +8,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
-	"src/mongodb/models"
+	"src/types"
 	"src/utils"
 )
 
 type ReceiptRepository interface {
-	Add(appDoc models.Receipt, ctx context.Context) (string, error)
-	List(count int, ctx context.Context) ([]*models.Receipt, error)
-	GetById(oId string, ctx context.Context) (*models.Receipt, error)
+	Add(appDoc types.MongoReceipt, ctx context.Context) (string, error)
+	List(count int, ctx context.Context) ([]*types.MongoReceipt, error)
+	GetById(oId string, ctx context.Context) (*types.MongoReceipt, error)
 	Delete(oId string, ctx context.Context) (int64, error)
 }
 
@@ -46,7 +46,9 @@ func (app *receiptRepository) AddIndex() (string, error) {
 	return name, nil
 }
 
-func (app *receiptRepository) Add(appDoc models.Receipt, ctx context.Context) (string, error) {
+// TODO: need to use a postgres table or other intermediary to extract contract code from the tx
+// TODO: that created the contract and is reported in the receipt
+func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context) (string, error) {
 
 	//if !app.indicesExist {
 	//	_, err := app.AddIndex()
@@ -69,12 +71,10 @@ func (app *receiptRepository) Add(appDoc models.Receipt, ctx context.Context) (s
 		}
 	}
 
-	utils.Logger.Info("ReceiptRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	utils.Logger.Info("ReceiptRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {
@@ -84,18 +84,15 @@ func (app *receiptRepository) Add(appDoc models.Receipt, ctx context.Context) (s
 		}
 	}
 
-	utils.Logger.Error("receiptRepository.go:84", "INVALID TYPE CHECK RECEIPT REPOSITORY") // todo remove dev item
+	utils.Logger.Error("receiptRepository.go:84", "INVALID TYPE CHECK RECEIPT REPOSITORY")
 	return "0", nil
 
 }
 
-func (app *receiptRepository) List(count int, ctx context.Context) ([]*models.Receipt, error) {
+func (app *receiptRepository) List(count int, ctx context.Context) ([]*types.MongoReceipt, error) {
 
 	findOptions := options.Find()
 	findOptions.SetLimit(int64(count))
-
-	// TODO: look at using below logging library
-	//logrus.Infof("FindOptions %d, DbName %s, Url %s", count, app.config.DbName, app.config.Url)
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
@@ -104,12 +101,10 @@ func (app *receiptRepository) List(count int, ctx context.Context) ([]*models.Re
 		return nil, err
 	}
 
-	var appDocs []*models.Receipt
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
+	var appDocs []*types.MongoReceipt
+
 	for cursor.Next(ctx) {
-		// create a value into which the single document can be decoded
-		var elem models.Receipt
+		var elem types.MongoReceipt
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)
 			return nil, err
@@ -124,13 +119,13 @@ func (app *receiptRepository) List(count int, ctx context.Context) ([]*models.Re
 	return appDocs, nil
 }
 
-func (app *receiptRepository) GetById(oId string, ctx context.Context) (*models.Receipt, error) {
+func (app *receiptRepository) GetById(oId string, ctx context.Context) (*types.MongoReceipt, error) {
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	filter := bson.D{primitive.E{Key: "_id", Value: oId}}
 
-	var appDoc *models.Receipt
+	var appDoc *types.MongoReceipt
 
 	collection.FindOne(ctx, filter).Decode(&appDoc)
 
