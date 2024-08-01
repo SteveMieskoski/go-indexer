@@ -63,6 +63,11 @@ type MongoTransaction struct {
 	AccessList           []MongoAccessList `json:"AccessList"`
 }
 
+func (s MongoTransaction) String() string {
+	bytes, _ := json.Marshal(s)
+	return string(bytes)
+}
+
 func (s Transaction) String() string {
 	bytes, _ := json.Marshal(s)
 	return string(bytes)

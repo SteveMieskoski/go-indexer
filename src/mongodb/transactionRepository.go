@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"reflect"
 	"src/types"
 	"src/utils"
 )
@@ -65,11 +66,35 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 
 	//utils.Logger.Info("TransactionRepository - Get Inserted Document _Id Check")
 
-	if oidResult, ok := insertResult.InsertedID.(string); !ok {
-		return "-2", err
-	} else {
-		return oidResult, nil
+	//if insertResult == nil {
+	//	println("WTF")
+	//	return "-3", nil
+	//}
+	if err != nil {
+		if !mongo.IsDuplicateKeyError(err) {
+			utils.Logger.Fatal(err)
+			return "", err
+		} else {
+			return "-3", nil
+		}
 	}
+
+	//utils.Logger.Info(insertResult.InsertedID)
+	//utils.Logger.Info("BlockRepository - Get Inserted Document _Id Check")
+	typeCheck := reflect.ValueOf(insertResult.InsertedID)
+	if typeCheck.IsValid() {
+		if oidResult, ok := insertResult.InsertedID.(string); !ok {
+			return "-2", err
+		} else {
+			return oidResult, nil
+		}
+	}
+	return "0", nil
+	//if oidResult, ok := insertResult.InsertedID.(string); !ok {
+	//	return "-2", err
+	//} else {
+	//	return oidResult, nil
+	//}
 
 }
 
