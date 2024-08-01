@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+var consumptionLogModulo = 500
+
 type DatabaseCoordinator interface {
 	AddBlock() chan<- *types.MongoBlock
 	AddReceipt() chan<- *types.MongoReceipt
@@ -21,8 +23,8 @@ type DatabaseCoordinator interface {
 	AddAddressDetail() chan<- *types.Address
 	AddContractAddress() chan<- *types.Address
 	Close()
-	ConvertToBlock(block protobuf2.Block) *types.MongoBlock
-	ConvertToReceipt(receipt protobuf2.Receipt) *types.MongoReceipt
+	ConvertToBlock(block *protobuf2.Block) *types.MongoBlock
+	ConvertToReceipt(receipt *protobuf2.Receipt) *types.MongoReceipt
 	ConvertToLog(logVal *protobuf2.Log) *types.MongoLog
 	ConvertToBlob(blob *protobuf2.Blob) *types.MongoBlob
 	ConvertToTransaction(tx *protobuf2.Transaction) *types.MongoTransaction
@@ -240,7 +242,7 @@ func (db *databaseCoordinator) monitorBlockChannel() {
 			utils.Logger.Errorf("Error from consumer for block: %v", err)
 			//return
 		}
-		if receivedCount%100 == 0 {
+		if receivedCount%consumptionLogModulo == 0 {
 			fmt.Printf("Processed %d Blocks\n", receivedCount)
 		}
 	}
@@ -269,7 +271,7 @@ func (db *databaseCoordinator) monitorReceiptChannel() {
 			utils.Logger.Errorf("Error from consumer for receipt: %v", err)
 			//return
 		}
-		if receivedCount%100 == 0 {
+		if receivedCount%consumptionLogModulo == 0 {
 			fmt.Printf("Processed %d Receipts\n", receivedCount)
 		}
 
@@ -286,7 +288,7 @@ func (db *databaseCoordinator) monitorLogChannel() {
 			//return
 		}
 
-		if receivedCount%100 == 0 {
+		if receivedCount%consumptionLogModulo == 0 {
 			fmt.Printf("Processed %d Logs\n", receivedCount)
 		}
 	}
@@ -300,11 +302,15 @@ func (db *databaseCoordinator) monitorTransactionChannel() {
 
 		//db.AddAddressDetail() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
 		// work around due to above channel blocking. Doesn't appear that it should?
-		//_, err := db.AddressRepository.AddAddressDetail(types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum})
-		db.AddAddressDetail() <- &types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum}
+		_, err := db.AddressRepository.AddAddressDetail(types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum})
+		if err != nil {
+			utils.Logger.Errorf("Error from saving address detail for transaction: %v", err)
+			//return
+		}
+		//db.AddAddressDetail() <- &types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum}
 		db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
 
-		println("did it block")
+		//println("did it block")
 		// check bloom filter to quickly identify whether the addresses are known
 		//if !db.AddressChecker.Exist(tx.From) {
 		//	db.AddAddressDetail() <- &types.Address{Address: tx.From, Nonce: int64(tx.Nonce), LastSeen: bnum}
@@ -318,12 +324,12 @@ func (db *databaseCoordinator) monitorTransactionChannel() {
 		//	db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
 		//}
 
-		_, err := db.TransactionRepository.Add(*tx, context.Background())
+		_, err = db.TransactionRepository.Add(*tx, context.Background())
 		if err != nil {
 			utils.Logger.Errorf("Error from consumer for transaction: %v", err)
 			//return
 		}
-		if receivedCount%100 == 0 {
+		if receivedCount%consumptionLogModulo == 0 {
 			fmt.Printf("Processed %d Transactions\n", receivedCount)
 		}
 	}
@@ -340,7 +346,7 @@ func (db *databaseCoordinator) monitorBlobChannel() {
 			//return
 		}
 
-		if receivedCount%100 == 0 {
+		if receivedCount%consumptionLogModulo == 0 {
 			fmt.Printf("Processed %d Blobs\n", receivedCount)
 		}
 	}
@@ -348,7 +354,7 @@ func (db *databaseCoordinator) monitorBlobChannel() {
 
 func (db *databaseCoordinator) monitorAddressChannel() {
 	for address := range db.addressChan {
-		println("address only")
+		//println("address only")
 		//println("Received address")
 		_, err := db.AddressRepository.AddAddressOnly(*address)
 		// Handle errors better
@@ -361,7 +367,7 @@ func (db *databaseCoordinator) monitorAddressChannel() {
 
 func (db *databaseCoordinator) monitorAddAddressBalanceChannel() {
 	for address := range db.addressBalanceChan {
-		println("monitorAddAddressBalanceChannel")
+		//println("monitorAddAddressBalanceChannel")
 		//println("Received address")
 		_, err := db.AddressRepository.AddAddressBalance(*address)
 		// Handle errors better
@@ -373,8 +379,7 @@ func (db *databaseCoordinator) monitorAddAddressBalanceChannel() {
 
 func (db *databaseCoordinator) monitorAddAddressDetailChannel() {
 	for address := range db.addressDetailChan {
-		println("address detail")
-		//println("Received address")
+		//println("address detail")
 		_, err := db.AddressRepository.AddAddressDetail(*address)
 		// Handle errors better
 		if err != nil {
@@ -408,11 +413,11 @@ func (db *databaseCoordinator) monitorAddressUpdateChannel() {
 	}
 }
 
-func (db *databaseCoordinator) ConvertToBlock(block protobuf2.Block) *types.MongoBlock {
+func (db *databaseCoordinator) ConvertToBlock(block *protobuf2.Block) *types.MongoBlock {
 	return types.Block{}.MongoFromProtobufType(block)
 }
 
-func (db *databaseCoordinator) ConvertToReceipt(receipt protobuf2.Receipt) *types.MongoReceipt {
+func (db *databaseCoordinator) ConvertToReceipt(receipt *protobuf2.Receipt) *types.MongoReceipt {
 	return types.Receipt{}.MongoFromProtobufType(receipt)
 }
 

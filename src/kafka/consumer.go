@@ -56,34 +56,9 @@ func NewMongoDbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinat
 		utils.Logger.Panicf("Error parsing Kafka version: %v", err)
 	}
 
-	//uri := os.Getenv("MONGO_URI")
-	//var settings = mongodb.DatabaseSetting{
-	//	Url:        uri,
-	//	DbName:     "blocks",
-	//	Collection: "blocks", // default Collection Name. Overridden in consumer.go
-	//}
-
 	brokerUri := os.Getenv("BROKER_URI")
 	brokers := []string{brokerUri}
-	// --------- reset offsets (start) --------------------------
-	//
-	//broker := sarama.NewBroker(brokerUri)
-	//err = broker.Open(nil)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//versionNum, _ := strconv.ParseInt(version.String(), 10, 0)
-	//
-	//_, err = broker.DeleteOffsets(&sarama.DeleteOffsetsRequest{
-	//	Version: int16(versionNum),
-	//	Group:   groupId,
-	//})
-	//if err != nil {
-	//	utils.Logger.Info("Error deleting offsets: %v", err)
-	//	return
-	//}
-	// --------- reset offsets (end) --------------------------
+
 	/**
 	 * Construct a new Sarama configuration.
 	 * The Kafka cluster version has to be defined before the consumer/producer is initialized.
@@ -103,7 +78,7 @@ func NewMongoDbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinat
 		IdxConfig:      idxConfig,
 		ConsumerTopics: topics,
 	}
-	//DbCoordinator, _ := mongodb.NewDatabaseCoordinator(settings, idxConfig)
+
 	consumer.DatabaseCoordinator = DbCoordinator
 	consumer.PrimaryCoordinator = "MONGO"
 
@@ -125,6 +100,7 @@ func NewMongoDbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinat
 			// recreated to get the new claims
 			if err := client.Consume(ctx, topics, &consumer); err != nil {
 				if errors.Is(err, sarama.ErrClosedConsumerGroup) {
+					utils.Logger.Panicf("Error from consumer: %v", err)
 					return
 				}
 				utils.Logger.Panicf("Error from consumer: %v", err)
@@ -233,6 +209,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		}
 		select {
 		case message, ok := <-claim.Messages():
+			/*start := time.Now()*/
 			if !ok {
 				utils.Logger.Infof("message channel was closed")
 				return nil
@@ -244,7 +221,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				if err != nil {
 					return err
 				}
-				consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(block)
+				consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(&block)
 				//utils.Logger.Infof("Message claimed: BlockNumber = %s, timestamp = %v, topic = %s", block.Number, message.Timestamp, message.Topic)
 			}
 
@@ -254,11 +231,13 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				if err != nil {
 					return err
 				}
-				consumer.DatabaseCoordinator.AddReceipt() <- consumer.DatabaseCoordinator.ConvertToReceipt(receipt)
+				consumer.DatabaseCoordinator.AddReceipt() <- consumer.DatabaseCoordinator.ConvertToReceipt(&receipt)
 
 				for _, logVal := range receipt.Logs {
 					consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
 				}
+				/*duration := time.Since(start)
+				fmt.Printf("Consuming claim took: %d for  topic %s \n", duration, message.Topic)*/
 				//println("Consumed receipt", receipt.String())
 				//utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
@@ -299,6 +278,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			}
 
 			session.MarkMessage(message, "")
+
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
 		// https://github.com/IBM/sarama/issues/1192
@@ -315,6 +295,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			session.Context().Done()
 			return nil
 		}
+
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 type DataModel[goType any, protoType any, modelType any] interface {
 	MongoFromGoType(data goType) modelType
 	ProtobufFromGoType(data goType) protoType
-	MongoFromProtobufType(data protoType) *modelType
+	MongoFromProtobufType(data *protoType) *modelType
 	ProtobufFromMongoType(data modelType) *protoType
 }
 
@@ -138,7 +138,7 @@ func (s Block) ProtobufFromGoType(block Block) protobufLocal.Block {
 	}
 }
 
-func (s Block) MongoFromProtobufType(block protobufLocal.Block) *MongoBlock {
+func (s Block) MongoFromProtobufType(block *protobufLocal.Block) *MongoBlock {
 
 	var convertedArray []MongoTransaction
 

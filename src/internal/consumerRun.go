@@ -22,16 +22,16 @@ func ConsumerRun(idxConfig types.IdxConfigStruct) {
 	go func() {
 		kafka.NewMongoDbConsumer([]string{types.TRANSACTION_TOPIC}, DbCoordinator, idxConfig)
 	}()
-	//go func() {
-	//	kafka.NewMongoDbConsumer([]string{types.BLOB_TOPIC}, idxConfig)
-	//}()
-	//go func() {
-	//	kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC}, idxConfig)
-	//}()
-	//
-	//kafka.NewMongoDbConsumer([]string{types.BLOCK_TOPIC}, idxConfig)
+	go func() {
+		kafka.NewMongoDbConsumer([]string{types.BLOB_TOPIC}, DbCoordinator, idxConfig)
+	}()
+	go func() {
+		kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC}, DbCoordinator, idxConfig)
+	}()
 
-	kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC}, DbCoordinator, idxConfig)
+	kafka.NewMongoDbConsumer([]string{types.BLOCK_TOPIC}, DbCoordinator, idxConfig)
+
+	//kafka.NewMongoDbConsumer([]string{types.ADDRESS_TOPIC}, DbCoordinator, idxConfig)
 	//kafka.NewMongoDbConsumer([]string{types.TRANSACTION_TOPIC}, idxConfig)
 
 	println("ConsumerRun")
