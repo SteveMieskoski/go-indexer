@@ -84,7 +84,6 @@ values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $3;`, app
 }
 
 func (a *addressRepository) AddAddressDetail(appDoc types.Address) (string, error) {
-
 	// maybe the nonce collection should get combined with the balance requests.
 	_, err := a.client.Exec(context.Background(),
 		`insert into addresses ("Address", "Nonce", "LastSeen", "IsContract")
@@ -109,6 +108,7 @@ values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "Balance" = $2, "LastS
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
+	//fmt.Printf("address balance result %v", res)
 	//
 	//
 	//if result.Error != nil {

@@ -64,6 +64,7 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 	}
 
 	//utils.Logger.Info("TransactionRepository - Get Inserted Document _Id Check")
+
 	if oidResult, ok := insertResult.InsertedID.(string); !ok {
 		return "-2", err
 	} else {

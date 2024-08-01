@@ -23,7 +23,8 @@ func Run(idxConfig types.IdxConfigStruct) {
 	brokers := os.Getenv("BROKER_URI")
 	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
-	runs := engine.NewBlockRunner(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
+	blockProcessor := engine.NewBlockProcessor(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
+	runs := engine.NewBlockRunner(blockProcessor, idxConfig)
 
 	//beaconBlockRunner.StartBeaconSync()
 	//

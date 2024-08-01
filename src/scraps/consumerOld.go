@@ -1,14 +1,16 @@
-package kafka
+package scraps
 
 import (
 	"context"
 	"errors"
 	"github.com/IBM/sarama"
+	"github.com/golang/protobuf/proto"
 	"log"
 	"os"
 	"os/signal"
 	"src/mongodb"
 	"src/postgres"
+	protobuf2 "src/protobuf"
 	"src/types"
 	"src/utils"
 	"sync"
@@ -24,7 +26,7 @@ import (
 //)
 
 // Consumer represents a Sarama consumer group consumer
-type Consumer struct {
+type ConsumerOld struct {
 	ready               chan bool
 	terminateRun        bool
 	DatabaseCoordinator mongodb.DatabaseCoordinator
@@ -34,7 +36,7 @@ type Consumer struct {
 	ConsumerTopics      []string
 }
 
-func DbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxConfig types.IdxConfigStruct) {
+func NewMongoDbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxConfig types.IdxConfigStruct) {
 
 	sigusr1 := make(chan os.Signal, 1)
 	signal.Notify(sigusr1, syscall.SIGUSR1)
@@ -71,7 +73,7 @@ func DbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxC
 	/**
 	 * Setup a new Sarama consumer group
 	 */
-	consumer := ConsumerHandler{
+	consumer := ConsumerOld{
 		ready:          make(chan bool),
 		IdxConfig:      idxConfig,
 		ConsumerTopics: topics,
@@ -147,20 +149,20 @@ func DbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxC
 	}
 }
 
-func toggleConsumptionFlow(client sarama.ConsumerGroup, isPaused *bool) {
-	if *isPaused {
-		client.ResumeAll()
-		utils.Logger.Info("Resuming consumption")
-	} else {
-		client.PauseAll()
-		utils.Logger.Info("Resuming consumption")
-	}
+//func toggleConsumptionFlow(client sarama.ConsumerGroup, isPaused *bool) {
+//	if *isPaused {
+//		client.ResumeAll()
+//		utils.Logger.Info("Resuming consumption")
+//	} else {
+//		client.PauseAll()
+//		utils.Logger.Info("Resuming consumption")
+//	}
+//
+//	*isPaused = !*isPaused
+//}
 
-	*isPaused = !*isPaused
-}
-
-/*// Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *Consumer) Setup(sess sarama.ConsumerGroupSession) error {
+// Setup is run at the beginning of a new session, before ConsumeClaim
+func (consumer *ConsumerOld) Setup(sess sarama.ConsumerGroupSession) error {
 
 	if consumer.IdxConfig.ClearConsumer {
 		for _, aTopic := range consumer.ConsumerTopics {
@@ -175,14 +177,14 @@ func (consumer *Consumer) Setup(sess sarama.ConsumerGroupSession) error {
 }
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
+func (consumer *ConsumerOld) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 // Once the Messages() channel is closed, the Handler must finish its processing
 // loop and exit.
-func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (consumer *ConsumerOld) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	// NOTE:
 	// Do not move the code below to a goroutine.
 	// The `ConsumeClaim` itself is called within a goroutine, see:
@@ -207,6 +209,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		}
 		select {
 		case message, ok := <-claim.Messages():
+			/*start := time.Now()*/
 			if !ok {
 				utils.Logger.Infof("message channel was closed")
 				return nil
@@ -233,7 +236,8 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				for _, logVal := range receipt.Logs {
 					consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
 				}
-
+				/*duration := time.Since(start)
+				fmt.Printf("Consuming claim took: %d for  topic %s \n", duration, message.Topic)*/
 				//println("Consumed receipt", receipt.String())
 				//utils.Logger.Infof("Message claimed: TransactionHash = %s, timestamp = %v, topic = %s", receipt.TransactionHash, message.Timestamp, message.Topic)
 			}
@@ -293,7 +297,7 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		}
 
 	}
-}*/
+}
 
 // need topics[topic] = handler
 //func NewPostgresConsumer(topics []string, idxConfig types.IdxConfigStruct) {

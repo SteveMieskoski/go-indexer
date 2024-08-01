@@ -5,7 +5,6 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"os/signal"
-	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
 	"src/types"
@@ -27,7 +26,7 @@ type BlockRunner struct {
 	lastBlock                int
 	firstBlockSeen           int
 	produceDelay             time.Duration
-	producerFactory          *kafka.ProducerProvider
+	blockProcessor           BlockProcessor
 	redis                    redisdb.RedisClient
 	redisTrack               redisdb.RedisClient
 	blockRetriever           BlockRetriever
@@ -40,7 +39,7 @@ type BlockRunner struct {
 	//addressesToCheck         addressToCheckStruct
 }
 
-func NewBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig types.IdxConfigStruct) BlockRunner {
+func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStruct) BlockRunner {
 
 	redisClient := redisdb.NewClient(1)
 	redisTrack := redisdb.NewClient(1)
@@ -77,7 +76,7 @@ func NewBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig types.Idx
 		firstBlockSeen:           0,
 		redis:                    *redisClient,
 		redisTrack:               *redisTrack,
-		producerFactory:          producerFactory,
+		blockProcessor:           blockProcessor,
 		blockRetriever:           *blockRetriever,
 		blockSyncTrack:           blockSyncTracking,
 		newBlockSyncTrack:        createNewBlockSyncTrack,
@@ -109,8 +108,6 @@ func (r *BlockRunner) StartBlockSync() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	fmt.Printf("producer ready: %t\n", r.producerFactory.Connected)
 
 	blockNumber := r.blockRetriever.LatestBlock()
 
@@ -153,8 +150,6 @@ func (r *BlockRunner) listenForCurrentBlock() {
 	defer stop()
 	dbAccess := r.newBlockSyncTrack()
 
-	fmt.Printf("producer ready: %t\n", r.producerFactory.Connected)
-
 	blockRetriever := NewBlockRetriever(r.redis)
 	blockGen := blockRetriever.BlockHeaderChannel()
 	var wg sync.WaitGroup
@@ -181,7 +176,7 @@ func (r *BlockRunner) listenForCurrentBlock() {
 			continue
 		}
 		wg.Add(1)
-		r.processBlock(block, &wg)
+		r.blockProcessor.processBlock(block, &wg)
 
 		val, err := r.redis.Get("priorCurrentBlock")
 		if err != nil {
@@ -214,174 +209,6 @@ func (r *BlockRunner) listenForCurrentBlock() {
 		fmt.Println("signal received")
 		return
 	default:
-	}
-
-}
-
-// break out into it's own type and possibly use context to hold the block number
-func (r *BlockRunner) processBlock(block types.Block, wg *sync.WaitGroup) bool {
-
-	TransactionsProcessed := true
-	ReceiptsProcessed := true
-	completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
-
-	if completed {
-		convertedBlock := types.Block{}.MongoFromGoType(block)
-
-		//utils.Logger.Infof("Block %s contains %d Transactions", convertedBlock.Number, len(convertedBlock.Transactions))
-
-		TransactionsProcessed = r.processBlockTransactions(block, convertedBlock)
-
-		ReceiptsProcessed = r.processBlockReceipts(convertedBlock, wg)
-
-		updateComplete, err := r.updateSyncRecord(int(block.Number), ReceiptsProcessed, TransactionsProcessed)
-		if err != nil {
-			utils.Logger.Errorln(err)
-		}
-
-		if !updateComplete {
-			completed = false
-		}
-
-	} else {
-		r.errorCount += 1
-		utils.Logger.Infof("Error producing BLOCK %v", block.Number)
-		numb := strconv.Itoa(int(block.Number))
-		_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
-			DataType: types.BLOCK_TOPIC,
-			BlockId:  numb,
-		})
-		if err != nil {
-			utils.Logger.Errorln(err)
-		}
-	}
-
-	wg.Done()
-	return completed && ReceiptsProcessed && TransactionsProcessed
-}
-
-func (r *BlockRunner) processBlockTransactions(block types.Block, convertedBlock types.MongoBlock) bool {
-	//addressesToCheck := addressToCheckStruct{
-	//	addressSet:  mapset.NewSet[string](),
-	//	blockNumber: 0,
-	//	txCount:     int64(len(block.Transactions)),
-	//}
-
-	TransactionsProcessed := true
-	for _, tx := range block.Transactions {
-		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
-		if !completedTx {
-			r.errorCount += 1
-			TransactionsProcessed = false
-			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
-				DataType: types.TRANSACTION_TOPIC,
-				BlockId:  convertedBlock.Number,
-				RecordId: tx.Hash.String(),
-			})
-			if err != nil {
-				utils.Logger.Errorln(err)
-			}
-			utils.Logger.Infof("Error producing transaction for block %s transaction hash: %s", convertedBlock.Number, tx.Hash)
-			time.Sleep(r.produceDelay * time.Millisecond)
-		} /*else {
-			addressesToCheck.addressSet.Add(tx.From.String())
-			addressesToCheck.addressSet.Add(tx.To.String())
-		}*/
-	}
-	//addressesToCheck.blockNumber = int64(block.Number)
-
-	//r.processAddressesInBlock(addressesToCheck)
-	return TransactionsProcessed
-}
-
-func (r *BlockRunner) processBlockReceipts(convertedBlock types.MongoBlock, wg *sync.WaitGroup) bool {
-
-	addressesToCheck := addressToCheckStruct{
-		addressSet:  mapset.NewSet[string](),
-		blockNumber: 0,
-		txCount:     int64(len(convertedBlock.Transactions)),
-	}
-
-	ReceiptsProcessed := true
-	receipts, err := GetBlockReceipts(convertedBlock.Hash)
-
-	if err != nil {
-		utils.Logger.Error(err)
-		wg.Done()
-		return false
-	}
-
-	for _, Receipt := range receipts {
-		completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
-		if !completedR {
-			r.errorCount += 1
-			ReceiptsProcessed = false
-			_, err := r.pgRetryTrack.Add(types.PgTrackForToRetry{
-				DataType: types.RECEIPT_TOPIC,
-				BlockId:  convertedBlock.Number,
-				RecordId: Receipt.TransactionHash.String(),
-			})
-			if err != nil {
-				utils.Logger.Errorln(err)
-			}
-			utils.Logger.Infof("Error producing receipt for block %s transaction hash: %s", convertedBlock.Number, Receipt.TransactionHash)
-			time.Sleep(r.produceDelay * time.Millisecond)
-		} else {
-			addressesToCheck.addressSet.Add(Receipt.From.String())
-			addressesToCheck.addressSet.Add(Receipt.To.String())
-			for _, lgs := range Receipt.Logs {
-				addressesToCheck.addressSet.Add(lgs.Address.String())
-			}
-		}
-	}
-
-	num, _ := strconv.Atoi(convertedBlock.Number)
-	addressesToCheck.blockNumber = int64(num)
-
-	r.processAddressesInBlock(addressesToCheck)
-
-	return ReceiptsProcessed
-}
-
-// The batch call to erigon (at least) is returning incorrectly.
-func (r *BlockRunner) processAddressesInBlock(addressesToCheck addressToCheckStruct) {
-
-	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	//defer stop()
-
-	setIterator := addressesToCheck.addressSet.ToSlice()
-
-	for _, addr := range setIterator {
-		// excluding null address. such as with contract creation
-		if addr != "0x0" {
-			balanceHex, txCountHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
-			if err != nil {
-				utils.Logger.Errorln(err)
-				return
-			}
-			balance, err1 := strconv.ParseInt(balanceHex[2:], 16, 64)
-			if err1 != nil {
-				balance = 0
-			}
-
-			txCount, err2 := strconv.ParseInt(txCountHex[2:], 16, 64)
-			if err2 != nil {
-				txCount = 0
-			}
-			//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
-
-			CollectedAddress := types.AddressBalance{
-				Address:  addr,
-				LastSeen: blockNumber,
-				Balance:  balance,
-				Nonce:    txCount,
-			}
-			completed := r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
-			if !completed {
-				r.errorCount += 1
-			}
-		}
-
 	}
 
 }
@@ -486,7 +313,7 @@ func (r *BlockRunner) getPriorBlocks() {
 				}
 
 				go func() {
-					produceOk := r.processBlock(*block, &wg)
+					produceOk := r.blockProcessor.processBlock(*block, &wg)
 					if produceOk {
 						if r.produceDelay >= 200 {
 							r.produceDelay = r.produceDelay - 100
@@ -592,7 +419,7 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 				}
 
 				go func() {
-					produceOk := r.processBlock(*block, &wg)
+					produceOk := r.blockProcessor.processBlock(*block, &wg)
 					if produceOk {
 						if r.produceDelay >= 200 {
 							r.produceDelay = r.produceDelay - 100
@@ -643,7 +470,7 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 		wg.Add(1)
 		bNum, _ := strconv.Atoi(tx.BlockId)
 		block := r.blockRetriever.GetBlock(bNum)
-		completed := r.processBlock(block, &wg)
+		completed := r.blockProcessor.processBlock(block, &wg)
 		//completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 		if completed {
 			_, err := r.pgRetryTrack.Delete(tx.Id)
@@ -659,10 +486,10 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	for _, tx := range transactionsToRetry {
 		println(tx.RecordId)
 		transaction := r.blockRetriever.GetTransaction(tx.RecordId)
-		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, transaction)
+		completedTx := r.blockProcessor.producerFactory.Produce(types.TRANSACTION_TOPIC, transaction)
 		if completedTx {
 			bNum, _ := strconv.Atoi(tx.BlockId)
-			_, err := r.updateSyncTransactionsRecord(bNum, true)
+			_, err := r.blockProcessor.updateSyncTransactionsRecord(bNum, true)
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
@@ -677,10 +504,10 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 
 	for _, receipt := range receiptsToRetry {
 		txReceipt := r.blockRetriever.GetTransactionReceipt(receipt.RecordId)
-		completedTx := r.producerFactory.Produce(types.RECEIPT_TOPIC, txReceipt)
+		completedTx := r.blockProcessor.producerFactory.Produce(types.RECEIPT_TOPIC, txReceipt)
 		if completedTx {
 			bNum, _ := strconv.Atoi(receipt.BlockId)
-			_, err := r.updateSyncReceiptsRecord(bNum, true)
+			_, err := r.blockProcessor.updateSyncReceiptsRecord(bNum, true)
 			if err != nil {
 				utils.Logger.Errorln(err)
 			}
@@ -692,74 +519,4 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	}
 
 	utils.Logger.Info("RetryFailedRetrievals END")
-}
-
-func (r *BlockRunner) updateSyncRecord(blockNumber int, ReceiptsProcessed bool, TransactionsProcessed bool) (bool, error) {
-	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
-	if err != nil {
-		utils.Logger.Errorln(err)
-		return false, err
-	}
-	if blockEntry != nil {
-		blockEntry.Processed = ReceiptsProcessed && TransactionsProcessed
-		blockEntry.Retrieved = true
-		blockEntry.ReceiptsProcessed = ReceiptsProcessed
-		blockEntry.TransactionsProcessed = TransactionsProcessed
-		_, err = r.blockSyncTrack.Update(*blockEntry)
-		if err != nil {
-			utils.Logger.Errorln(err)
-			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
-			return false, err
-		}
-	} else {
-		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
-	}
-
-	return true, nil
-}
-
-func (r *BlockRunner) updateSyncTransactionsRecord(blockNumber int, TransactionsProcessed bool) (bool, error) {
-	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
-	if err != nil {
-		utils.Logger.Errorln(err)
-		return false, err
-	}
-	if blockEntry != nil {
-		blockEntry.Processed = blockEntry.ReceiptsProcessed && TransactionsProcessed
-		blockEntry.Retrieved = true
-		blockEntry.TransactionsProcessed = TransactionsProcessed
-		_, err = r.blockSyncTrack.Update(*blockEntry)
-		if err != nil {
-			utils.Logger.Errorln(err)
-			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
-			return false, err
-		}
-	} else {
-		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
-	}
-
-	return true, nil
-}
-
-func (r *BlockRunner) updateSyncReceiptsRecord(blockNumber int, ReceiptsProcessed bool) (bool, error) {
-	blockEntry, err := r.blockSyncTrack.GetByBlockNumber(blockNumber)
-	if err != nil {
-		utils.Logger.Errorln(err)
-		return false, err
-	}
-	if blockEntry != nil {
-		blockEntry.Processed = ReceiptsProcessed && blockEntry.TransactionsProcessed
-		blockEntry.Retrieved = true
-		blockEntry.ReceiptsProcessed = ReceiptsProcessed
-		_, err = r.blockSyncTrack.Update(*blockEntry)
-		if err != nil {
-			utils.Logger.Errorln(err)
-			utils.Logger.Infof("POSTGRES Error Updating Record for block %v", blockNumber)
-			return false, err
-		}
-	} else {
-		utils.Logger.Infof("POSTGRES RETURNED NIL FOR BLOCK SYNC RECORD OF BLOCK  %d", blockNumber)
-	}
-
-	return true, nil
 }

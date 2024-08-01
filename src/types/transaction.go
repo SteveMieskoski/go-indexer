@@ -36,6 +36,7 @@ type Transaction struct {
 }
 
 type MongoTransaction struct {
+	Id                   string            `bson:"_id" json:"_id"`
 	BlockHash            string            `bson:"blockHash" json:"blockHash"`
 	BlockNumber          string            `bson:"blockNumber" json:"blockNumber"`
 	From                 string            `bson:"from" json:"from"`
@@ -75,6 +76,7 @@ func (s Transaction) MongoFromGoType(tx Transaction) MongoTransaction {
 	}
 
 	return MongoTransaction{
+		Id:                   tx.Hash.String(),
 		BlockHash:            tx.BlockHash.String(),
 		BlockNumber:          strconv.FormatUint(uint64(tx.BlockNumber), 10),
 		From:                 tx.From.String(),
@@ -148,6 +150,7 @@ func (s Transaction) MongoFromProtobufType(tx protobufLocal.Transaction) *MongoT
 	}
 
 	return &MongoTransaction{
+		Id:                   tx.Hash,
 		BlockHash:            tx.BlockHash,
 		BlockNumber:          tx.BlockNumber,
 		From:                 tx.From,
