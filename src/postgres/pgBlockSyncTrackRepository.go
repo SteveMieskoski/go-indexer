@@ -68,8 +68,6 @@ func (a *pgBlockSyncTrackRepository) GetByBlockNumber(num int) (*types.PgBlockSy
 
 func (a *pgBlockSyncTrackRepository) Update(appDoc types.PgBlockSyncTrack) (*types.PgBlockSyncTrack, error) {
 
-	//var block types.PgBlockSyncTrack
-
 	var updateString = `
 		update pg_block_sync_tracks 
 		set "Retrieved" = $1, "Processed" = $2, "ReceiptsProcessed" = $3, "TransactionsProcessed" = $4,

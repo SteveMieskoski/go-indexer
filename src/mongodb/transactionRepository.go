@@ -46,6 +46,7 @@ func (app *transactionRepository) AddIndex() (string, error) {
 	return name, nil
 }
 
+// TODO: identify fields that need to be indexed
 func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context.Context) (string, error) {
 	//if !app.indicesExist {
 	//	_, err := app.AddIndex()
@@ -59,17 +60,10 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	//utils.Logger.Info("TransactionRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	//utils.Logger.Info("TransactionRepository - Get Inserted Document _Id Check")
-
-	//if insertResult == nil {
-	//	println("WTF")
-	//	return "-3", nil
-	//}
 	if err != nil {
 		if !mongo.IsDuplicateKeyError(err) {
 			utils.Logger.Fatal(err)
@@ -79,8 +73,6 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 		}
 	}
 
-	//utils.Logger.Info(insertResult.InsertedID)
-	//utils.Logger.Info("BlockRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {
@@ -90,12 +82,6 @@ func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context
 		}
 	}
 	return "0", nil
-	//if oidResult, ok := insertResult.InsertedID.(string); !ok {
-	//	return "-2", err
-	//} else {
-	//	return oidResult, nil
-	//}
-
 }
 
 func (app *transactionRepository) List(count int, ctx context.Context) ([]*types.MongoTransaction, error) {
@@ -117,10 +103,8 @@ func (app *transactionRepository) List(count int, ctx context.Context) ([]*types
 	}(cursor, ctx)
 
 	var appDocs []*types.MongoTransaction
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
+
 	for cursor.Next(ctx) {
-		// create a value into which the single document can be decoded
 		var elem types.MongoTransaction
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)

@@ -71,12 +71,10 @@ func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context
 		}
 	}
 
-	//utils.Logger.Info("ReceiptRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	//utils.Logger.Info("ReceiptRepository - Get Inserted Document _Id Check")
 	typeCheck := reflect.ValueOf(insertResult.InsertedID)
 	if typeCheck.IsValid() {
 		if oidResult, ok := insertResult.InsertedID.(string); !ok {
@@ -86,7 +84,7 @@ func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context
 		}
 	}
 
-	utils.Logger.Error("receiptRepository.go:84", "INVALID TYPE CHECK RECEIPT REPOSITORY") // todo remove dev item
+	utils.Logger.Error("receiptRepository.go:84", "INVALID TYPE CHECK RECEIPT REPOSITORY")
 	return "0", nil
 
 }
@@ -96,9 +94,6 @@ func (app *receiptRepository) List(count int, ctx context.Context) ([]*types.Mon
 	findOptions := options.Find()
 	findOptions.SetLimit(int64(count))
 
-	// TODO: look at using below logging library
-	//logrus.Infof("FindOptions %d, DbName %s, Url %s", count, app.config.DbName, app.config.Url)
-
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	cursor, err := collection.Find(ctx, bson.D{}, findOptions)
@@ -107,10 +102,8 @@ func (app *receiptRepository) List(count int, ctx context.Context) ([]*types.Mon
 	}
 
 	var appDocs []*types.MongoReceipt
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
+
 	for cursor.Next(ctx) {
-		// create a value into which the single document can be decoded
 		var elem types.MongoReceipt
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)

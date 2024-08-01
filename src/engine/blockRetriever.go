@@ -92,15 +92,7 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 		}
 
 		time.Sleep(5 * time.Millisecond)
-		// The connection is established now.
-		// Update the channel with the current block.
-		//var lastBlock types.Block
-		//err = client.CallContext(ctx, &lastBlock, "eth_getBlockByNumber", "latest", true)
-		//if err != nil {
-		//	utils.Logger.Error("can't get latest block:", err)
-		//	return
-		//}
-		//subch <- lastBlock
+
 		sig := <-sigs
 		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 			sub.Unsubscribe()
@@ -200,7 +192,6 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (string, string, int64, error) {
 
 	if len(address) < 42 {
-		//println("Invalid Address Length")
 		return "", "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
 	}
 	// Connect the client.
@@ -318,7 +309,7 @@ func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
 
 func GetBlockReceipts(blockHash string) (types.Receipts, error) {
 	url := os.Getenv("HTTP_RPC_URL")
-	client, _ := rpc.Dial(url) // todo: move this external to the function (maybe)
+	client, _ := rpc.Dial(url)
 	defer client.Close()
 
 	subch := make(chan types.Receipts)
@@ -336,15 +327,11 @@ func GetBlockReceipts(blockHash string) (types.Receipts, error) {
 
 		return r, err
 	}
-	//if len(r) > 1 {
-	//	println(r[0].String())
-	//}
-
 	return r, nil
 }
 
 func GetStorageAt(url string, blockHash string) chan types.Receipts {
-	client, _ := rpc.Dial(url) // todo: move this external to the function (maybe)
+	client, _ := rpc.Dial(url)
 	defer client.Close()
 
 	sigs := make(chan os.Signal, 1)

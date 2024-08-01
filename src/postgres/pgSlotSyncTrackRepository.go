@@ -59,8 +59,6 @@ func (a *pgSlotSyncTrackRepository) GetBySlotNumber(num int) (*types.PgSlotSyncT
 
 func (a *pgSlotSyncTrackRepository) Update(appDoc types.PgSlotSyncTrack) (*types.PgSlotSyncTrack, error) {
 
-	//var block *types.PgSlotSyncTrack
-
 	var updateString = `
 		update pg_block_sync_tracks 
 		set "Retrieved" = $1, "Processed" = $2, "BlobsProcessed" = $3
@@ -68,9 +66,7 @@ func (a *pgSlotSyncTrackRepository) Update(appDoc types.PgSlotSyncTrack) (*types
 
 	_, err := a.client.Exec(context.Background(), updateString, appDoc.Retrieved, appDoc.Processed,
 		appDoc.BlobsProcessed, appDoc.Slot)
-	//blocks, err := pgx.CollectRows(rows, pgx.RowToStructByName[types.PgSlotSyncTrack])
-	//println(len(block))
-	//return blocks, nil
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// there were no rows, but otherwise no error occurred

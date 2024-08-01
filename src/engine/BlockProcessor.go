@@ -13,12 +13,6 @@ import (
 	"time"
 )
 
-/*
-r.producerFactory
-r.pgRetryTrack
-
-*/
-
 type BlockProcessor struct {
 	producerFactory *kafka.ProducerProvider
 	blockRetriever  BlockRetriever
@@ -47,7 +41,6 @@ func NewBlockProcessor(producerFactory *kafka.ProducerProvider, idxConfig types.
 	}
 }
 
-// break out into it's own type and possibly use context to hold the block number
 func (r *BlockProcessor) processBlock(block types.Block, wg *sync.WaitGroup) bool {
 
 	TransactionsProcessed := true
@@ -161,9 +154,6 @@ func (r *BlockProcessor) processBlockReceipts(convertedBlock types.MongoBlock, w
 
 // The batch call to erigon (at least) is returning incorrectly.
 func (r *BlockProcessor) processAddressesInBlock(addressesToCheck addressToCheckStruct) {
-
-	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	//defer stop()
 
 	setIterator := addressesToCheck.addressSet.ToSlice()
 

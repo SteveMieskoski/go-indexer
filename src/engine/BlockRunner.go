@@ -36,7 +36,6 @@ type BlockRunner struct {
 	errorCount               int // track how many errors occur. If this reaches a high threshold and sinceLastError is low then possibly exit
 	sinceLastError           int // track how many successful instances occurred since last error
 	pauseRunner              *sync.WaitGroup
-	//addressesToCheck         addressToCheckStruct
 }
 
 func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStruct) BlockRunner {
@@ -140,7 +139,7 @@ func (r *BlockRunner) StartBlockSync() {
 	default:
 	}
 
-	go r.getPriorBlocks() // TODO <- UNCOMMENT
+	go r.getPriorBlocks()
 	r.listenForCurrentBlock()
 }
 
@@ -219,8 +218,6 @@ func (r *BlockRunner) getPriorBlocks() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	//var wg sync.WaitGroup
-
 	Num, _ := r.redis.Get("blockNumberOnSyncStart")
 	blockNumberOnSyncStart, _ := strconv.Atoi(Num)
 
@@ -238,7 +235,6 @@ func (r *BlockRunner) getPriorBlocks() {
 
 	blocksPerBatch := 10
 	goodRun := true
-	//duration := 0
 
 	blockTimerCount := 0
 	blockTimerAverage := 0
@@ -250,9 +246,7 @@ func (r *BlockRunner) getPriorBlocks() {
 
 		if !goodRun {
 			blocksPerBatch = 10
-		} /*else if blocksPerBatch < 210 {
-			blocksPerBatch = blocksPerBatch + 10
-		}*/
+		}
 
 		// TODO: Modify this to use a rolling window for the average
 		if goodRun && blockTimerAverage > 5 && blocksPerBatch > 20 {
@@ -265,18 +259,6 @@ func (r *BlockRunner) getPriorBlocks() {
 			blockTimerCount = 0
 			blockTimerAverage = 0
 		}
-
-		//if !goodRun {
-		//	blocksPerBatch = 10
-		//} else if blocksPerBatch < 300 {
-		//	blocksPerBatch = blocksPerBatch + 10
-		//} else if blocksPerBatch < 1000 {
-		//	blocksPerBatch = blocksPerBatch + 1
-		//}
-		// was getting errors, maybe from above, need to check with the mem error
-		//if duration > 900000000 && blocksPerBatch > 20 {
-		//	blocksPerBatch = blocksPerBatch - 5
-		//}
 
 		batchEndBlock := lastBlockRetrieved + blocksPerBatch
 
@@ -362,7 +344,7 @@ func (r *BlockRunner) getPriorBlocks() {
 	r.RetryFailedRetrievals()
 }
 
-// TODO: this should probably be used as the runner for getting past blocks
+// TODO: this could be used as the runner for getting past blocks
 func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 
 	dbAccess := r.newBlockSyncTrack()

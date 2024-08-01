@@ -132,8 +132,6 @@ func GetBlobSideCars(slot string) types.SidecarsResponse {
 		fmt.Printf("client: could not read response body: %s\n", err)
 		os.Exit(1)
 	}
-	//fmt.Printf("client: response body: %s\n", resBody[0:60000])
-
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {

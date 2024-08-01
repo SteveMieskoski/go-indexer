@@ -13,7 +13,6 @@ import (
 	"syscall"
 )
 
-// dsn := "host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=Asia/Shanghai"
 var createAddressesTable = `
 drop table if exists addresses;
 create table addresses
@@ -79,15 +78,8 @@ create table pg_track_for_to_retries
     "RecordId"      text
 )`
 
-//type AClient struct {
-//	locked sync.Mutex
-//	client *gorm.DB
-//	index  int
-//}
-
 type PostgresDB struct {
 	client *pgxpool.Pool
-	//clients []AClient
 }
 
 func NewClient(idxConfig types.IdxConfigStruct) *PostgresDB {
@@ -138,46 +130,3 @@ func NewClient(idxConfig types.IdxConfigStruct) *PostgresDB {
 
 	return &PostgresDB{client: dbpool}
 }
-
-//func (p *PostgresDB) getNewClient() *gorm.DB {
-//	dsn := os.Getenv("RAW_GO_POSTGRES_STRING")
-//	db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-//	return db
-//}
-
-//func (p *PostgresDB) getClient() *gorm.DB {
-//
-//	return db
-//}
-//
-//func (p *AClient) borrow() (client AClient) {
-//	p.producersLock.Lock()
-//	defer p.producersLock.Unlock()
-//
-//	if len(p.producers) == 0 {
-//		for {
-//			producer = p.ProducerProvider()
-//			if producer != nil {
-//				return
-//			}
-//		}
-//	}
-//
-//	index := len(p.producers) - 1
-//	producer = p.producers[index]
-//	p.producers = p.producers[:index]
-//	return
-//}
-//
-//func (p *AClient) release(producer AClient) {
-//	p.producersLock.Lock()
-//	defer p.producersLock.Unlock()
-//
-//	// If released producer is erroneous close it and don't return it to the producer pool.
-//	if producer.TxnStatus()&sarama.ProducerTxnFlagInError != 0 {
-//		// Try to close it
-//		_ = producer.Close()
-//		return
-//	}
-//	p.producers = append(p.producers, producer)
-//}

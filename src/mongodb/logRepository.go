@@ -58,12 +58,10 @@ func (app *logRepository) Add(appDoc types.MongoLog, ctx context.Context) (strin
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)
 
-	//utils.Logger.Info("LogRepository - ErrNilCursor Check")
 	if errors.Is(err, mongo.ErrNilCursor) {
 		return "-1", err
 	}
 
-	//utils.Logger.Info("LogRepository - Get Inserted Document _Id Check")
 	if oidResult, ok := insertResult.InsertedID.(string); !ok {
 		return "-2", err
 	} else {
@@ -85,10 +83,8 @@ func (app *logRepository) List(count int, ctx context.Context) ([]*types.MongoLo
 	}
 
 	var appDocs []*types.MongoLog
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
+
 	for cursor.Next(ctx) {
-		// create a value into which the single document can be decoded
 		var elem types.MongoLog
 		if err := cursor.Decode(&elem); err != nil {
 			utils.Logger.Fatal(err)

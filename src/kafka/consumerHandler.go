@@ -127,59 +127,6 @@ func (consumer ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession
 			default:
 			}
 
-			//if message.Topic == types.BLOCK_TOPIC {
-			//	var block protobuf2.Block
-			//	err := proto.Unmarshal(message.Value, &block)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(&block)
-			//}
-			//
-			//if message.Topic == types.RECEIPT_TOPIC {
-			//	var receipt protobuf2.Receipt
-			//	err := proto.Unmarshal(message.Value, &receipt)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	consumer.DatabaseCoordinator.AddReceipt() <- consumer.DatabaseCoordinator.ConvertToReceipt(&receipt)
-			//
-			//	for _, logVal := range receipt.Logs {
-			//		consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
-			//	}
-			//}
-			//
-			//if message.Topic == types.BLOB_TOPIC {
-			//	var blob protobuf2.Blob
-			//	err := proto.Unmarshal(message.Value, &blob)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	consumer.DatabaseCoordinator.AddBlob() <- consumer.DatabaseCoordinator.ConvertToBlob(&blob)
-			//
-			//}
-			//
-			//if message.Topic == types.TRANSACTION_TOPIC {
-			//	var tx protobuf2.Transaction
-			//	err := proto.Unmarshal(message.Value, &tx)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	consumer.DatabaseCoordinator.AddTransaction() <- consumer.DatabaseCoordinator.ConvertToTransaction(&tx)
-			//}
-			//
-			//if message.Topic == types.ADDRESS_TOPIC {
-			//	var addr protobuf2.AddressDetails
-			//	err := proto.Unmarshal(message.Value, &addr)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	consumer.DatabaseCoordinator.AddAddressBalance() <- consumer.DatabaseCoordinator.ConvertToAddress(&addr)
-			//
-			//	//utils.Logger.Infof("Message claimed: Address = %s, timestamp = %v, topic = %s", addr.Address, message.Timestamp, message.Topic)
-			//
-			//}
-
 			session.MarkMessage(message, "")
 
 		// Should return when `session.Context()` is done.

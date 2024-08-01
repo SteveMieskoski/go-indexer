@@ -40,11 +40,6 @@ values ($1, $2, $3, $4, $5) ON CONFLICT ("Address") DO UPDATE SET "Nonce" = $2, 
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
-	//
-	//
-	//if result.Error != nil {
-	//	return "", result.Error
-	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
 }
@@ -57,11 +52,6 @@ values ($1, $2) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $2;`, appDoc.
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
-	//
-	//
-	//if result.Error != nil {
-	//	return "", result.Error
-	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
 }
@@ -74,11 +64,6 @@ values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $3;`, app
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
-	//
-	//
-	//if result.Error != nil {
-	//	return "", result.Error
-	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
 }
@@ -91,11 +76,6 @@ values ($1, $2, $3, $4) ON CONFLICT ("Address") DO UPDATE SET "LastSeen" = $3, "
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
-	//
-	//
-	//if result.Error != nil {
-	//	return "", result.Error
-	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
 }
@@ -108,12 +88,6 @@ values ($1, $2, $3) ON CONFLICT ("Address") DO UPDATE SET "Balance" = $2, "LastS
 	if err != nil {
 		utils.Logger.Errorln(err)
 	}
-	//fmt.Printf("address balance result %v", res)
-	//
-	//
-	//if result.Error != nil {
-	//	return "", result.Error
-	//}
 
 	return strconv.Itoa(int(appDoc.Id)), nil
 }
@@ -131,7 +105,6 @@ func (a *addressRepository) Update(appDoc types.Address) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			// there were no rows, but otherwise no error occurred
 		} else {
-			//panic(err)
 			utils.Logger.Errorln(err)
 			return err
 
@@ -140,26 +113,6 @@ func (a *addressRepository) Update(appDoc types.Address) error {
 	return nil
 }
 
-// func (a *addressRepository) List(count int, ctx context.Context) ([]*types.Address, error) {
-//
-//		var addresses []*types.Address
-//		result := a.client.Find(&addresses)
-//
-//		if result.Error != nil {
-//			return nil, result.Error
-//		}
-//
-//		return addresses, nil
-//	}
-//
-// func (a *addressRepository) GetById(id string, ctx context.Context) (*types.Address, error) {
-//
-//		var address *types.Address
-//
-//		a.client.First(&address, id)
-//
-//		return address, nil
-//	}
 func (a *addressRepository) Delete(id string) (int64, error) {
 
 	_, err := a.client.Exec(context.Background(),

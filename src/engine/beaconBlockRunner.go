@@ -32,9 +32,6 @@ func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig typ
 	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
 	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
-	//brokers := os.Getenv("BROKER_URI")
-	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
-
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,
 		priorRetrievalInProgress: false,
@@ -121,8 +118,6 @@ func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.Sidec
 
 	completedOk := true
 
-	//fmt.Printf("Sidecars retrieved %d\n", len(sideCar.Data))
-
 	for _, blob := range sideCar.Data {
 		completed := b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
 		if !completed {
@@ -153,9 +148,6 @@ func (b *BeaconBlockRunner) processBeaconBlock(block *types.BeaconHeadersRespons
 func (b *BeaconBlockRunner) getPriorSlots() {
 	_, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	//resultChan := make(chan bool)
-	//defer close(resultChan)
 
 	Num, _ := b.redis.Get("BeaconSlotNumberOnSyncStart")
 	slotNumberOnSyncStart, _ := strconv.Atoi(Num)
