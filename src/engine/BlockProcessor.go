@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/golang/protobuf/proto"
 	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
@@ -45,7 +46,12 @@ func (r *BlockProcessor) processBlock(block types.Block, wg *sync.WaitGroup) boo
 
 	TransactionsProcessed := true
 	ReceiptsProcessed := true
-	completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
+	pbBlock := types.Block{}.ProtobufFromGoType(block)
+	blockToSend, err := proto.Marshal(&pbBlock)
+	if err != nil {
+		utils.Logger.Errorln(err)
+	}
+	completed := r.producerFactory.Produce(types.BLOCK_TOPIC, blockToSend)
 
 	if completed {
 		convertedBlock := types.Block{}.MongoFromGoType(block)
@@ -84,7 +90,12 @@ func (r *BlockProcessor) processBlockTransactions(block types.Block, convertedBl
 
 	TransactionsProcessed := true
 	for _, tx := range block.Transactions {
-		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, tx)
+		pbTx := types.Transaction{}.ProtobufFromGoType(tx)
+		txToSend, err := proto.Marshal(&pbTx)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		completedTx := r.producerFactory.Produce(types.TRANSACTION_TOPIC, txToSend)
 		if !completedTx {
 			r.errorCount += 1
 			TransactionsProcessed = false
@@ -121,7 +132,12 @@ func (r *BlockProcessor) processBlockReceipts(convertedBlock types.MongoBlock, w
 	}
 
 	for _, Receipt := range receipts {
-		completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, *Receipt)
+		pbReceipt := types.Receipt{}.ProtobufFromGoType(*Receipt)
+		receiptToSend, err := proto.Marshal(&pbReceipt)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		completedR := r.producerFactory.Produce(types.RECEIPT_TOPIC, receiptToSend)
 		if !completedR {
 			r.errorCount += 1
 			ReceiptsProcessed = false
@@ -182,7 +198,12 @@ func (r *BlockProcessor) processAddressesInBlock(addressesToCheck addressToCheck
 				Balance:  balance,
 				Nonce:    txCount,
 			}
-			completed := r.producerFactory.Produce(types.ADDRESS_TOPIC, CollectedAddress)
+			pbAddress := types.AddressBalance{}.ProtobufFromGoType(CollectedAddress)
+			addressToSend, err := proto.Marshal(&pbAddress)
+			if err != nil {
+				utils.Logger.Errorln(err)
+			}
+			completed := r.producerFactory.Produce(types.ADDRESS_TOPIC, addressToSend)
 			if !completed {
 				r.errorCount += 1
 			}

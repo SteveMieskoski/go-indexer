@@ -28,12 +28,12 @@ func Run(idxConfig types.IdxConfigStruct) {
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
-	if !idxConfig.DisableBeacon {
-		go func() {
-			beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
-			beaconBlockRunner.StartBeaconSync()
-		}()
-	}
+	//if !idxConfig.DisableBeacon {
+	//	go func() {
+	//		beaconBlockRunner := engine.NewBeaconBlockRunner(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
+	//		beaconBlockRunner.StartBeaconSync()
+	//	}()
+	//}
 
 	//runs.Demo()
 	runs.StartBlockSync()

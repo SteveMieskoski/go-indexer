@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/golang/protobuf/proto"
 	"log"
 	"os"
 	"os/signal"
 	"src/types"
 	"src/utils"
-	"strconv"
-	"time"
-
 	//"strconv"
 	"sync"
 	"syscall"
@@ -72,60 +68,6 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 
 	brokerUri := os.Getenv("BROKER_URI")
 	brokers = []string{brokerUri}
-	broker := sarama.NewBroker(brokerUri)
-	err := broker.Open(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	if idxConfig.ClearKafka {
-		// DELETES/CLEARS EXISTING TOPICS
-		utils.Logger.Infof("DELETING/CLEARING EXISTING TOPICS")
-		versionNum, _ := strconv.ParseInt(version, 10, 0)
-		_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
-			Version: int16(versionNum),
-			Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
-		})
-		if err != nil {
-			utils.Logger.Errorf("Producer: unable to delete topics %s\n", err)
-		}
-		//utils.Logger.Infof("waiting for Kafka to finish clearing")
-		//time.Sleep(10 * time.Second)
-		tpcs := make(map[string]*sarama.TopicDetail)
-		tpcs[types.TRANSACTION_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		tpcs[types.RECEIPT_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		tpcs[types.BLOCK_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		tpcs[types.LOG_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		tpcs[types.BLOB_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		tpcs[types.ADDRESS_TOPIC] = &sarama.TopicDetail{
-			NumPartitions:     -1,
-			ReplicationFactor: -1,
-		}
-		broker.CreateTopics(&sarama.CreateTopicsRequest{
-			Version:      int16(versionNum),
-			TopicDetails: tpcs,
-			Timeout:      5 * time.Second,
-			ValidateOnly: false,
-		})
-		utils.Logger.Infof("waiting for Kafka to finish resetting")
-		time.Sleep(3 * time.Second)
-		// DeleteTopicsRequest
-	}
 
 	provider := &ProducerProvider{}
 	provider.ProducerProvider = func() sarama.AsyncProducer {
@@ -149,7 +91,7 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 }
 
 // ProduceBlock TODO: figure out how to properly generalize this function
-func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
+func (p *ProducerProvider) Produce(topic string, block []byte) bool {
 	producer := p.borrow()
 	defer p.release(producer)
 
@@ -160,92 +102,12 @@ func (p *ProducerProvider) Produce(topic string, block interface{}) bool {
 		return false
 	}
 
-	//t := reflect.TypeOf(block).Name()
-	//fmt.Printf("TypeOf %s: %v\n", topic, t)
-
-	switch data := block.(type) {
-
-	case types.Block:
-		//checkedBlock, ok := block.(types.Block)
-		//if !ok {
-		//	fmt.Println("Not a checking account")
-		//	return
-		//}
-
-		pbBlock := types.Block{}.ProtobufFromGoType(data)
-		blockToSend, err := proto.Marshal(&pbBlock)
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.ByteEncoder(blockToSend),
-		}
-
-		producer.Input() <- msg
-
-		if err != nil {
-			return false
-		}
-		break
-	case types.Receipt:
-
-		pbBlock := types.Receipt{}.ProtobufFromGoType(data)
-		blockToSend, err := proto.Marshal(&pbBlock)
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.ByteEncoder(blockToSend),
-		}
-		producer.Input() <- msg
-
-		if err != nil {
-			return false
-		}
-		break
-	case types.Transaction:
-
-		pbBlock := types.Transaction{}.ProtobufFromGoType(data)
-		blockToSend, err := proto.Marshal(&pbBlock)
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.ByteEncoder(blockToSend),
-		}
-		producer.Input() <- msg
-
-		if err != nil {
-			return false
-		}
-		break
-	case types.Blob:
-		pbBlock := types.Blob{}.ProtobufFromGoType(data)
-		blockToSend, err := proto.Marshal(&pbBlock)
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.ByteEncoder(blockToSend),
-		}
-		producer.Input() <- msg
-
-		if err != nil {
-			return false
-		}
-		break
-
-	case types.AddressBalance:
-		pbBlock := types.AddressBalance{}.ProtobufFromGoType(data)
-		blockToSend, err := proto.Marshal(&pbBlock)
-
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Value: sarama.ByteEncoder(blockToSend),
-		}
-		producer.Input() <- msg
-
-		if err != nil {
-			return false
-		}
-		break
+	msg := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.ByteEncoder(block),
 	}
+
+	producer.Input() <- msg
 
 	// commit transaction
 	err = producer.CommitTxn()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/golang/protobuf/proto"
 	"os/signal"
 	"src/postgres"
 	"src/redisdb"
@@ -468,7 +469,12 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	for _, tx := range transactionsToRetry {
 		println(tx.RecordId)
 		transaction := r.blockRetriever.GetTransaction(tx.RecordId)
-		completedTx := r.blockProcessor.producerFactory.Produce(types.TRANSACTION_TOPIC, transaction)
+		pbTx := types.Transaction{}.ProtobufFromGoType(transaction)
+		txToSend, err := proto.Marshal(&pbTx)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		completedTx := r.blockProcessor.producerFactory.Produce(types.TRANSACTION_TOPIC, txToSend)
 		if completedTx {
 			bNum, _ := strconv.Atoi(tx.BlockId)
 			_, err := r.blockProcessor.updateSyncTransactionsRecord(bNum, true)
@@ -486,7 +492,12 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 
 	for _, receipt := range receiptsToRetry {
 		txReceipt := r.blockRetriever.GetTransactionReceipt(receipt.RecordId)
-		completedTx := r.blockProcessor.producerFactory.Produce(types.RECEIPT_TOPIC, txReceipt)
+		pbReceipt := types.Receipt{}.ProtobufFromGoType(txReceipt)
+		receiptToSend, err := proto.Marshal(&pbReceipt)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		completedTx := r.blockProcessor.producerFactory.Produce(types.RECEIPT_TOPIC, receiptToSend)
 		if completedTx {
 			bNum, _ := strconv.Atoi(receipt.BlockId)
 			_, err := r.blockProcessor.updateSyncReceiptsRecord(bNum, true)

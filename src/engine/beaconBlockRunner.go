@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"os/signal"
 	"src/kafka"
 	"src/postgres"
@@ -119,7 +120,12 @@ func (b *BeaconBlockRunner) processBlobSideCars(slot string, sideCar types.Sidec
 	completedOk := true
 
 	for _, blob := range sideCar.Data {
-		completed := b.producerFactory.Produce(types.BLOB_TOPIC, *blob)
+		pbBlob := types.Blob{}.ProtobufFromGoType(*blob)
+		blobToSend, err := proto.Marshal(&pbBlob)
+		if err != nil {
+			utils.Logger.Errorln(err)
+		}
+		completed := b.producerFactory.Produce(types.BLOB_TOPIC, blobToSend)
 		if !completed {
 			if completedOk {
 				completedOk = false
@@ -256,7 +262,12 @@ func (b *BeaconBlockRunner) RetryFailedRetrievals() {
 		sideCar := GetBlobSideCars(blobRecord.BlockId)
 		for _, blob := range sideCar.Data {
 			if blob.Index == blobRecord.RecordId {
-				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blob)
+				pbBlob := types.Blob{}.ProtobufFromGoType(*blob)
+				blobToSend, err := proto.Marshal(&pbBlob)
+				if err != nil {
+					utils.Logger.Errorln(err)
+				}
+				completed := b.producerFactory.Produce(types.BLOB_TOPIC, blobToSend)
 				if completed {
 					_, err := b.pgRetryTrack.Delete(blobRecord.Id)
 					if err != nil {
