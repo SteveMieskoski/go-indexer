@@ -6,7 +6,6 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/golang/protobuf/proto"
 	"os/signal"
-	"src/postgres"
 	"src/redisdb"
 	"src/types"
 	"src/utils"
@@ -60,12 +59,12 @@ func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStru
 			utils.Logger.Errorln(err)
 		}
 	}
-	blockSyncTracking := NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+	blockSyncTracking := NewBlockSyncTrackRepository(NewClient(idxConfig))
 
-	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(NewClient(idxConfig))
 
 	createNewBlockSyncTrack := func() PgBlockSyncTrackRepository {
-		return NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+		return NewBlockSyncTrackRepository(NewClient(idxConfig))
 	}
 
 	var pr sync.WaitGroup

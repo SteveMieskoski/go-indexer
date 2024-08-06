@@ -5,7 +5,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"os"
 	"os/signal"
-	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/types"
 	"src/utils"
@@ -16,7 +15,7 @@ type ConsumerHandler struct {
 	ready               chan bool
 	terminateRun        bool
 	DatabaseCoordinator DatabaseCoordinator
-	PostgresCoordinator postgres.PostgresDB
+	PostgresCoordinator PostgresDB
 	PrimaryCoordinator  string
 	IdxConfig           types.IdxConfigStruct
 	ConsumerTopics      []string

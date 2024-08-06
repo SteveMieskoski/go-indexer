@@ -5,7 +5,6 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/golang/protobuf/proto"
-	"src/postgres"
 	"src/redisdb"
 	"src/types"
 	"src/utils"
@@ -27,9 +26,9 @@ func NewBlockProcessor(producerFactory *ProducerProvider, idxConfig types.IdxCon
 
 	redisClient := redisdb.NewClient(1)
 	blockRetriever := NewBlockRetriever(*redisClient)
-	blockSyncTracking := NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+	blockSyncTracking := NewBlockSyncTrackRepository(NewClient(idxConfig))
 
-	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(NewClient(idxConfig))
 
 	fmt.Printf("producer ready: %t\n", producerFactory.Connected)
 

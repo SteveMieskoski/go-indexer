@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/golang/protobuf/proto"
-	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/types"
 	"src/utils"
@@ -93,7 +92,7 @@ func newDatabaseCoordinator(settings DatabaseSetting, idxConfig types.IdxConfigS
 		Collection: "transactions",
 	}
 
-	pg := postgres.NewClient(idxConfig)
+	pg := NewClient(idxConfig)
 
 	client, err := GetClient(settings, idxConfig)
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"os/signal"
-	"src/postgres"
 	"src/redisdb"
 	"src/types"
 	"src/utils"
@@ -29,8 +28,8 @@ type BeaconBlockRunner struct {
 func NewBeaconBlockRunner(producerFactory *ProducerProvider, idxConfig types.IdxConfigStruct) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient(2)
-	pgSlotSyncTrack := NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
-	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgSlotSyncTrack := NewSlotSyncTrackRepository(NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(NewClient(idxConfig))
 
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,

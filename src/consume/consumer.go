@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"src/postgres"
 	"src/types"
 	"src/utils"
 	"sync"
@@ -31,7 +30,7 @@ type Consumer struct {
 	ready               chan bool
 	terminateRun        bool
 	DatabaseCoordinator DatabaseCoordinator
-	PostgresCoordinator postgres.PostgresDB
+	PostgresCoordinator PostgresDB
 	PrimaryCoordinator  string
 	IdxConfig           types.IdxConfigStruct
 	ConsumerTopics      []string
