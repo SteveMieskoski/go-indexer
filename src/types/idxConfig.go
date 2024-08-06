@@ -12,7 +12,6 @@ type IdxConfigStruct struct {
 }
 
 func (s IdxConfigStruct) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }

@@ -18,7 +18,6 @@ type PgSlotSyncTrack struct {
 }
 
 func (s PgSlotSyncTrack) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }

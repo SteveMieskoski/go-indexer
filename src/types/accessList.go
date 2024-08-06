@@ -8,7 +8,7 @@ import (
 
 type AccessList struct {
 	Address     base.Address `json:"address"`
-	StorageKeys []base.Hash  `json:"storageKeys,omitempty"`
+	StorageKeys []Hash       `json:"storageKeys,omitempty"`
 }
 
 type MongoAccessList struct {

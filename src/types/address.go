@@ -25,16 +25,9 @@ type Address struct {
 }
 
 func (s Address) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }
-
-//type MethodSignature struct {
-//	gorm.Model
-//	signature       string
-//	contractAddress string
-//}
 
 type AddressBalance struct {
 	Address  string `json:"address"`
@@ -44,7 +37,6 @@ type AddressBalance struct {
 }
 
 func (s AddressBalance) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }

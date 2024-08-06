@@ -8,7 +8,7 @@ import (
 )
 
 type Receipt struct {
-	BlockHash         base.Hash    `json:"blockHash,omitempty"`
+	BlockHash         Hash         `json:"blockHash,omitempty"`
 	BlockNumber       base.Blknum  `json:"blockNumber"`
 	ContractAddress   base.Address `json:"contractAddress,omitempty"`
 	CumulativeGasUsed base.Gas     `json:"cumulativeGasUsed,omitempty"`
@@ -19,7 +19,7 @@ type Receipt struct {
 	Logs              []Log        `json:"logs"`
 	Status            base.Value   `json:"status"`
 	To                base.Address `json:"to,omitempty"`
-	TransactionHash   base.Hash    `json:"transactionHash"`
+	TransactionHash   Hash         `json:"transactionHash"`
 	TransactionIndex  base.Txnum   `json:"transactionIndex"`
 }
 

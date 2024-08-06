@@ -19,20 +19,20 @@ type Block struct {
 	BaseFeePerGas         base.Gas       `json:"baseFeePerGas"`
 	BlobGasUsed           base.Gas       `json:"blobGasUsed"`
 	ExcessBlobGas         base.Gas       `json:"excessBlobGas"`
-	ParentBeaconBlockRoot base.Hash      `json:"parentBeaconBlockRoot"`
-	ReceiptsRoot          base.Hash      `json:"receiptsRoot"`
-	StateRoot             base.Hash      `json:"stateRoot"`
+	ParentBeaconBlockRoot Hash           `json:"parentBeaconBlockRoot"`
+	ReceiptsRoot          Hash           `json:"receiptsRoot"`
+	StateRoot             Hash           `json:"stateRoot"`
 	BlockNumber           base.Blknum    `json:"blockNumber"`
 	Difficulty            base.Value     `json:"difficulty"`
 	GasLimit              base.Gas       `json:"gasLimit"`
 	GasUsed               base.Gas       `json:"gasUsed"`
-	Hash                  base.Hash      `json:"hash"`
+	Hash                  Hash           `json:"hash"`
 	Miner                 base.Address   `json:"miner"`
-	ParentHash            base.Hash      `json:"parentHash"`
+	ParentHash            Hash           `json:"parentHash"`
 	Timestamp             base.Timestamp `json:"timestamp"`
 	LogsBloom             string         `json:"logsBloom"`
 	Transactions          []Transaction  `json:"transactions"`
-	Uncles                []base.Hash    `json:"uncles,omitempty"`
+	Uncles                []Hash         `json:"uncles,omitempty"`
 	Withdrawals           []Withdrawal   `json:"withdrawals,omitempty"`
 	Number                base.Blknum    `json:"number"`
 }
@@ -69,7 +69,6 @@ type PgBlockNote struct {
 }
 
 func (s Block) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }
