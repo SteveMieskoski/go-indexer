@@ -44,18 +44,22 @@ func NewBlockConsumer(settings DatabaseSetting, idxConfig types.IdxConfigStruct,
 
 func (db *BlockConsumer) MonitorChannel() {
 	receivedCount := 0
-	for message := range db.Channel {
-		var block protobuf2.Block
-		err := proto.Unmarshal(message.Value, &block)
+	for msg := range db.Channel {
 		receivedCount++
-		_, err = db.BlockRepository.Add(*types.Block{}.MongoFromProtobufType(&block), context.Background())
-		if err != nil {
-			utils.Logger.Errorf("Error from consumer for block: %v", err)
-			//return
-		}
-		if receivedCount%consumptionLogModulo == 0 {
-			fmt.Printf("Processed %d Blocks\n", receivedCount)
-		}
+		go func(message *sarama.ConsumerMessage) {
+			var block protobuf2.Block
+			err := proto.Unmarshal(message.Value, &block)
+
+			_, err = db.BlockRepository.Add(*types.Block{}.MongoFromProtobufType(&block), context.Background())
+			if err != nil {
+				utils.Logger.Errorf("Error from consumer for block: %v", err)
+				//return
+			}
+			if receivedCount%consumptionLogModulo == 0 {
+				fmt.Printf("Processed %d Blocks\n", receivedCount)
+			}
+		}(msg)
+
 	}
 }
 
@@ -108,30 +112,34 @@ func NewReceiptConsumer(settings DatabaseSetting, idxConfig types.IdxConfigStruc
 }
 func (db *ReceiptConsumer) MonitorChannel() {
 	receivedCount := 0
-	for message := range db.Channel {
-		fmt.Printf("ReceiptConsumer %s \n", message.Topic)
-		var receipt protobuf2.Receipt
-		err := proto.Unmarshal(message.Value, &receipt)
+	for msg := range db.Channel {
 		receivedCount++
-		bnum, _ := strconv.ParseInt(receipt.BlockNumber, 16, 64)
+		go func(message *sarama.ConsumerMessage) {
 
-		// indicates contract creation so, it wouldn't already exist
-		if receipt.ContractAddress != "0x0" {
-			db.AddressChannel <- AddressChannelMessage{
-				action: "addressContract",
-				value:  types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum},
+			var receipt protobuf2.Receipt
+			err := proto.Unmarshal(message.Value, &receipt)
+
+			bnum, _ := strconv.ParseInt(receipt.BlockNumber, 16, 64)
+
+			// indicates contract creation so, it wouldn't already exist
+			if receipt.ContractAddress != "0x0" {
+				db.AddressChannel <- AddressChannelMessage{
+					action: "addressContract",
+					value:  types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum},
+				}
+				//db.AddContractAddress() <- &types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum}
 			}
-			//db.AddContractAddress() <- &types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum}
-		}
-		_, err = db.ReceiptRepository.Add(*types.Receipt{}.MongoFromProtobufType(&receipt), context.Background())
+			_, err = db.ReceiptRepository.Add(*types.Receipt{}.MongoFromProtobufType(&receipt), context.Background())
 
-		if err != nil {
-			utils.Logger.Errorf("Error from consumer for receipt: %v", err)
-			//return
-		}
-		if receivedCount%consumptionLogModulo == 0 {
-			fmt.Printf("Processed %d Receipts\n", receivedCount)
-		}
+			if err != nil {
+				utils.Logger.Errorf("Error from consumer for receipt: %v", err)
+				//return
+			}
+			if receivedCount%consumptionLogModulo == 0 {
+				fmt.Printf("Processed %d Receipts\n", receivedCount)
+			}
+
+		}(msg)
 
 	}
 }
@@ -186,7 +194,7 @@ func NewTransactionConsumer(settings DatabaseSetting, idxConfig types.IdxConfigS
 	return &TransactionConsumer{
 		Channel:               make(chan *sarama.ConsumerMessage),
 		Topic:                 Topic,
-		AddressChannel:        make(chan AddressChannelMessage, 2),
+		AddressChannel:        make(chan AddressChannelMessage),
 		TransactionRepository: NewTransactionRepository(client, transactionDbSettings),
 	}
 }
@@ -205,39 +213,55 @@ func (db *TransactionConsumer) AttachAddressChannel(AddressChannel chan AddressC
 
 func (db *TransactionConsumer) MonitorChannel() {
 	receivedCount := 0
-	for message := range db.Channel {
-		fmt.Printf("TransactionConsumer %s \n", message.Topic)
-		var tx protobuf2.Transaction
-		err := proto.Unmarshal(message.Value, &tx)
-		if err != nil {
-			utils.Logger.Errorf("Error from unmarshal for transaction: %v", err)
-			//return
-		}
+	for msg := range db.Channel {
 		receivedCount++
-		bnum, _ := strconv.ParseInt(tx.BlockNumber, 16, 64)
-
-		db.AddressChannel <- AddressChannelMessage{
-			action: "addressDetail",
-			value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
-		}
-		db.AddressChannel <- AddressChannelMessage{
-			action: "addressOnly",
-			value:  types.Address{Address: tx.To, LastSeen: bnum},
-		}
-		//db.AddAddress() <- &types.Address{Address: tx.To, LastSeen: bnum}
-
-		go func(transaction *types.MongoTransaction) {
-			_, err := db.TransactionRepository.Add(*transaction, context.Background())
-
+		go func(message *sarama.ConsumerMessage) {
+			fmt.Printf("TransactionConsumer %d \n", receivedCount)
+			var tx protobuf2.Transaction
+			err := proto.Unmarshal(message.Value, &tx)
 			if err != nil {
-				utils.Logger.Errorf("Error from consumer for transaction: %v", err)
+				utils.Logger.Errorf("Error from unmarshal for transaction: %v", err)
 				//return
 			}
-		}(types.Transaction{}.MongoFromProtobufType(tx))
 
-		if receivedCount%consumptionLogModulo == 0 {
-			fmt.Printf("Processed %d Transactions\n", receivedCount)
-		}
+			bnum, _ := strconv.ParseInt(tx.BlockNumber, 16, 64)
+
+			select {
+			case db.AddressChannel <- AddressChannelMessage{
+				action: "addressDetail",
+				value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
+			}:
+				fmt.Printf("addressDetail sent\n")
+			case db.AddressChannel <- AddressChannelMessage{
+				action: "addressOnly",
+				value:  types.Address{Address: tx.To, LastSeen: bnum},
+			}:
+				fmt.Printf("addressOnly sent\n")
+			default:
+				fmt.Printf("AddressChannel not available for topic %s \n", message.Topic)
+			}
+			//db.AddressChannel <- AddressChannelMessage{
+			//	action: "addressDetail",
+			//	value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
+			//}
+			//db.AddressChannel <- AddressChannelMessage{
+			//	action: "addressOnly",
+			//	value:  types.Address{Address: tx.To, LastSeen: bnum},
+			//}
+			//fmt.Printf("TransactionConsumer not available for topic %s \n", message.Topic)
+			go func(transaction *types.MongoTransaction) {
+				_, err := db.TransactionRepository.Add(*transaction, context.Background())
+
+				if err != nil {
+					utils.Logger.Errorf("Error from consumer for transaction: %v", err)
+					//return
+				}
+			}(types.Transaction{}.MongoFromProtobufType(tx))
+
+			if receivedCount%consumptionLogModulo == 0 {
+				fmt.Printf("Processed %d Transactions\n", receivedCount)
+			}
+		}(msg)
 
 	}
 }
@@ -278,20 +302,23 @@ func (db *BlobConsumer) AttachAddressChannel(chan AddressChannelMessage) {
 
 func (db *BlobConsumer) MonitorChannel() {
 	receivedCount := 0
-	for message := range db.Channel {
+	for msg := range db.Channel {
 		receivedCount++
-		var blob protobuf2.Blob
-		err := proto.Unmarshal(message.Value, &blob)
-		_, err = db.BlobRepository.Add(*types.Blob{}.MongoFromProtobufType(blob), context.Background())
-		// Handle errors better
-		if err != nil {
-			utils.Logger.Errorf("Error from consumer for blob: %v", err)
-			//return
-		}
+		go func(message *sarama.ConsumerMessage) {
+			var blob protobuf2.Blob
+			err := proto.Unmarshal(message.Value, &blob)
+			_, err = db.BlobRepository.Add(*types.Blob{}.MongoFromProtobufType(blob), context.Background())
+			// Handle errors better
+			if err != nil {
+				utils.Logger.Errorf("Error from consumer for blob: %v", err)
+				//return
+			}
 
-		if receivedCount%consumptionLogModulo == 0 {
-			fmt.Printf("Processed %d Blobs\n", receivedCount)
-		}
+			if receivedCount%consumptionLogModulo == 0 {
+				fmt.Printf("Processed %d Blobs\n", receivedCount)
+			}
+		}(msg)
+
 	}
 }
 
@@ -309,7 +336,7 @@ func NewAddressChannelConsumer(idxConfig types.IdxConfigStruct) *AddressChannelC
 
 	pg := NewClient(idxConfig)
 	return &AddressChannelConsumer{
-		AddressChannel:    make(chan AddressChannelMessage, 3),
+		AddressChannel:    make(chan AddressChannelMessage),
 		AddressRepository: NewAddressRepository(pg),
 	}
 }
@@ -357,6 +384,7 @@ func NewAddressConsumer(idxConfig types.IdxConfigStruct, Topic string) *AddressC
 	pg := NewClient(idxConfig)
 	return &AddressConsumer{
 		Channel:           make(chan *sarama.ConsumerMessage),
+		Topic:             Topic,
 		AddressRepository: NewAddressRepository(pg),
 	}
 }

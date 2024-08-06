@@ -54,10 +54,15 @@ func DbConsumer(topics []string, DbCoordinator DatabaseCoordinator, idxConfig ty
 	 */
 	config := sarama.NewConfig()
 	config.Version = version
+
 	config.Metadata.Timeout = 30 * time.Second
 	config.ClientID = "Indexer"
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+
+	//TODO: Figure out why either the client or kafka is abandoning the subscription after less than a second.
+	//config.Consumer.MaxWaitTime = 45 * time.Second
+	//config.Net.ReadTimeout = 45 * time.Second
 
 	/**
 	 * Setup a new Sarama consumer group

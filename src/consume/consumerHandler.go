@@ -7,6 +7,7 @@ import (
 	"src/types"
 	"src/utils"
 	"syscall"
+	"time"
 )
 
 type ConsumerHandler struct {
@@ -54,26 +55,30 @@ func (consumer ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
-		if consumer.terminateRun {
-			switch consumer.PrimaryCoordinator {
-			case "MONGO":
-				consumer.DatabaseCoordinator.Close()
-			case "POSTGRES":
-			default:
-			}
-
-			session.Context().Done()
-			return nil
-		}
+		//if consumer.terminateRun {
+		//	switch consumer.PrimaryCoordinator {
+		//	case "MONGO":
+		//		consumer.DatabaseCoordinator.Close()
+		//	case "POSTGRES":
+		//	default:
+		//	}
+		//
+		//	session.Context().Done()
+		//	return nil
+		//}
 		select {
 		case message, ok := <-claim.Messages():
-			/*start := time.Now()*/
 			if !ok {
 				utils.Logger.Infof("message channel was closed")
 				return nil
 			}
 
 			consumer.DatabaseCoordinator.MessageChannel() <- message
+
+			<-consumer.DatabaseCoordinator.ReceiptChannel()
+			time.Sleep(10 * time.Millisecond) // add a slight delay as the processing side (postgres) is taking just a little too long and can cause the next entry to get lost
+			//println(val)
+			utils.Logger.Infof("continue")
 
 			session.MarkMessage(message, "")
 
