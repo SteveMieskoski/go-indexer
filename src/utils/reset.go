@@ -3,10 +3,18 @@ package utils
 import (
 	"github.com/IBM/sarama"
 	"os"
-	"src/produce"
 	"src/types"
 	"strconv"
 	"time"
+)
+
+var (
+	Version   = "7.0.0"
+	topic     = "test"
+	producers = 6
+	verbose   = true
+
+	recordsNumber int64 = 100
 )
 
 func ResetKafka() {
@@ -20,7 +28,7 @@ func ResetKafka() {
 		panic(err)
 	}
 
-	versionNum, _ := strconv.ParseInt(produce.Version, 10, 0)
+	versionNum, _ := strconv.ParseInt(Version, 10, 0)
 	_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
 		Version: int16(versionNum),
 		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},

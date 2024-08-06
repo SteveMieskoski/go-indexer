@@ -8,14 +8,14 @@ import (
 )
 
 type Transaction struct {
-	BlockHash            base.Hash      `json:"blockHash"`
+	BlockHash            Hash           `json:"blockHash"`
 	BlockNumber          base.Blknum    `json:"blockNumber"`
 	From                 base.Address   `json:"from"`
 	Gas                  base.Gas       `json:"gas"`
 	GasPrice             base.Gas       `json:"gasPrice"`
 	GasUsed              base.Gas       `json:"gasUsed"`
 	HasToken             bool           `json:"hasToken"`
-	Hash                 base.Hash      `json:"hash"`
+	Hash                 Hash           `json:"hash"`
 	Input                string         `json:"input"`
 	IsError              bool           `json:"isError"`
 	MaxFeePerGas         base.Gas       `json:"maxFeePerGas"`

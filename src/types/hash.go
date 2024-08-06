@@ -1,9 +1,10 @@
-package utils
+package types
 
 import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"src/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -88,14 +89,14 @@ func bytesToHashString(hashBytes []byte) string {
 }
 
 func IsValidHex(typ string, val string, nBytes int) (bool, error) {
-	if _, err := ValidHex(val, nBytes); err != nil {
-		if errors.Is(err, ErrInvalidLength) {
+	if _, err := utils.ValidHex(val, nBytes); err != nil {
+		if errors.Is(err, utils.ErrInvalidLength) {
 			//lint:ignore ST1005 sorry
 			return false, fmt.Errorf("The %s option (%s) must be %d bytes long.", typ, val, nBytes)
-		} else if errors.Is(err, ErrInvalidHex) {
+		} else if errors.Is(err, utils.ErrInvalidHex) {
 			//lint:ignore ST1005 sorry
 			return false, fmt.Errorf("The %s option (%s) must be hex.", typ, val)
-		} else if errors.Is(err, ErrNoLeading0x) {
+		} else if errors.Is(err, utils.ErrNoLeading0x) {
 			//lint:ignore ST1005 sorry
 			return false, fmt.Errorf("The %s option (%s) must start with '0x'.", typ, val)
 		}

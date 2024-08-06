@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"src/types"
 )
 
 var errInvalidSelector = errors.New("expected valid four byte selector")
@@ -14,7 +15,7 @@ type Selector struct {
 
 func (s *Selector) Capture(values []string) error {
 	literal := values[0]
-	if valid, _ := IsValidHex("", literal, 4); !valid {
+	if valid, _ := types.IsValidHex("", literal, 4); !valid {
 		return errInvalidSelector
 	}
 
