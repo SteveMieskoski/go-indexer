@@ -43,7 +43,7 @@ type databaseCoordinator struct {
 	LogRepository         LogRepository
 	BlobRepository        BlobRepository
 	TransactionRepository TransactionRepository
-	AddressRepository     postgres.AddressRepository
+	AddressRepository     AddressRepository
 	blockChan             chan *types.MongoBlock
 	receiptChan           chan *types.MongoReceipt
 	logChan               chan *types.MongoLog
@@ -115,7 +115,7 @@ func newDatabaseCoordinator(settings DatabaseSetting, idxConfig types.IdxConfigS
 		return nil, err
 	}
 
-	AddressRepository := postgres.NewAddressRepository(pg)
+	AddressRepository := NewAddressRepository(pg)
 	TransactionRepository := NewTransactionRepository(client, transactionDbSettings)
 	BlockRepository := NewBlockRepository(client, blockDbSettings)
 	ReceiptRepository := NewReceiptRepository(client2, receiptDbSettings)

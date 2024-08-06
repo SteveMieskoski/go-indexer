@@ -4,7 +4,6 @@ go 1.22
 
 require (
 	github.com/IBM/sarama v1.43.2
-	github.com/SteveMieskoski/idx2 v0.0.0-20240805222031-85458313ec90
 	github.com/alecthomas/participle/v2 v2.1.1
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/bykof/gostradamus v1.1.1

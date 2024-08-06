@@ -17,8 +17,8 @@ import (
 type BlockProcessor struct {
 	producerFactory *ProducerProvider
 	blockRetriever  BlockRetriever
-	blockSyncTrack  postgres.PgBlockSyncTrackRepository
-	pgRetryTrack    postgres.PgTrackForToRetryRepository
+	blockSyncTrack  PgBlockSyncTrackRepository
+	pgRetryTrack    PgTrackForToRetryRepository
 	errorCount      int
 	produceDelay    time.Duration
 }
@@ -27,9 +27,9 @@ func NewBlockProcessor(producerFactory *ProducerProvider, idxConfig types.IdxCon
 
 	redisClient := redisdb.NewClient(1)
 	blockRetriever := NewBlockRetriever(*redisClient)
-	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+	blockSyncTracking := NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
 
-	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
 	fmt.Printf("producer ready: %t\n", producerFactory.Connected)
 

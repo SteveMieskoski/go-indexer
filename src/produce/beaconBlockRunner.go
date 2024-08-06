@@ -21,16 +21,16 @@ type BeaconBlockRunner struct {
 	currentBeaconBlock       int
 	producerFactory          *ProducerProvider
 	redis                    redisdb.RedisClient
-	pgSlotSyncTrack          postgres.PgSlotSyncTrackRepository
-	pgRetryTrack             postgres.PgTrackForToRetryRepository
+	pgSlotSyncTrack          PgSlotSyncTrackRepository
+	pgRetryTrack             PgTrackForToRetryRepository
 	produceDelay             time.Duration
 }
 
 func NewBeaconBlockRunner(producerFactory *ProducerProvider, idxConfig types.IdxConfigStruct) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient(2)
-	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
-	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgSlotSyncTrack := NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
 	return BeaconBlockRunner{
 		priorBeaconBlock:         0,

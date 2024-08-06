@@ -31,9 +31,9 @@ type BlockRunner struct {
 	redis                    redisdb.RedisClient
 	redisTrack               redisdb.RedisClient
 	blockRetriever           BlockRetriever
-	blockSyncTrack           postgres.PgBlockSyncTrackRepository
-	newBlockSyncTrack        func() postgres.PgBlockSyncTrackRepository
-	pgRetryTrack             postgres.PgTrackForToRetryRepository
+	blockSyncTrack           PgBlockSyncTrackRepository
+	newBlockSyncTrack        func() PgBlockSyncTrackRepository
+	pgRetryTrack             PgTrackForToRetryRepository
 	errorCount               int // track how many errors occur. If this reaches a high threshold and sinceLastError is low then possibly exit
 	sinceLastError           int // track how many successful instances occurred since last error
 	pauseRunner              *sync.WaitGroup
@@ -60,12 +60,12 @@ func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStru
 			utils.Logger.Errorln(err)
 		}
 	}
-	blockSyncTracking := postgres.NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+	blockSyncTracking := NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
 
-	pgRetryTrack := postgres.NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
+	pgRetryTrack := NewTrackForToRetryRepository(postgres.NewClient(idxConfig))
 
-	createNewBlockSyncTrack := func() postgres.PgBlockSyncTrackRepository {
-		return postgres.NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
+	createNewBlockSyncTrack := func() PgBlockSyncTrackRepository {
+		return NewBlockSyncTrackRepository(postgres.NewClient(idxConfig))
 	}
 
 	var pr sync.WaitGroup
