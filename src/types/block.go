@@ -69,7 +69,6 @@ type PgBlockNote struct {
 }
 
 func (s Block) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }

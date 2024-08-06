@@ -9,6 +9,7 @@ import (
 	"src/types"
 	"src/utils"
 	"strconv"
+	"time"
 )
 
 type TypeConsumer interface {
@@ -16,6 +17,30 @@ type TypeConsumer interface {
 	GetChannel() chan *sarama.ConsumerMessage
 	TopicLabel() string
 	AttachAddressChannel(chan AddressChannelMessage)
+}
+
+func sendOrRetry(sender chan AddressChannelMessage, message AddressChannelMessage, tryCount int) {
+	if tryCount > 10 {
+		fmt.Printf("AddressChannel retries failed for address %s action %s \n", message.value.Address, message.action)
+		return
+	}
+	var holder AddressChannelMessage
+	holder = message
+	retryDelay := time.Duration(tryCount * 100)
+	time.Sleep(retryDelay * time.Millisecond)
+
+	select {
+	case sender <- message:
+		// likely a race condition if sending the address was only retried once
+		if tryCount > 1 {
+			fmt.Printf("AddressChannel ok for action %s \n", message.action)
+		}
+
+	default:
+		fmt.Printf("Try %d - AddressChannel not available for topic %s \n", tryCount, message.action)
+		tryCount++
+		sendOrRetry(sender, holder, tryCount)
+	}
 }
 
 type BlockConsumer struct {
@@ -121,15 +146,27 @@ func (db *ReceiptConsumer) MonitorChannel() {
 
 			bnum, _ := strconv.ParseInt(receipt.BlockNumber, 16, 64)
 
+			if len(receipt.Logs) > 0 {
+				fmt.Printf("Logs in block %d \n", len(receipt.Logs))
+			}
+
 			// indicates contract creation so, it wouldn't already exist
 			if receipt.ContractAddress != "0x0" {
-				db.AddressChannel <- AddressChannelMessage{
+				select {
+				case db.AddressChannel <- AddressChannelMessage{
 					action: "addressContract",
 					value:  types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum},
+				}:
+				default:
+					go sendOrRetry(db.AddressChannel, AddressChannelMessage{
+						action: "addressContract",
+						value:  types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum},
+					}, 1)
 				}
-				//db.AddContractAddress() <- &types.Address{Address: receipt.ContractAddress, IsContract: true, LastSeen: bnum}
 			}
 			_, err = db.ReceiptRepository.Add(*types.Receipt{}.MongoFromProtobufType(&receipt), context.Background())
+
+			db.extractLogs(receipt.Logs)
 
 			if err != nil {
 				utils.Logger.Errorf("Error from consumer for receipt: %v", err)
@@ -156,11 +193,11 @@ func (db *ReceiptConsumer) AttachAddressChannel(AddressChannel chan AddressChann
 	db.AddressChannel = AddressChannel
 }
 
-func (db *ReceiptConsumer) extractLogs(logs []protobuf2.Log) {
+func (db *ReceiptConsumer) extractLogs(logs []*protobuf2.Log) {
 	receivedCount := 0
 	for _, log := range logs {
 		receivedCount++
-		_, err := db.LogRepository.Add(*types.Log{}.MongoFromProtobufType(log), context.Background())
+		_, err := db.LogRepository.Add(*types.Log{}.MongoFromProtobufType(*log), context.Background())
 		if err != nil {
 			utils.Logger.Errorf("Error from consumer for log: %v", err)
 			//return
@@ -170,7 +207,6 @@ func (db *ReceiptConsumer) extractLogs(logs []protobuf2.Log) {
 			fmt.Printf("Processed %d Logs\n", receivedCount)
 		}
 	}
-	fmt.Printf("receivedCount: %d \n", receivedCount)
 }
 
 type TransactionConsumer struct {
@@ -216,7 +252,6 @@ func (db *TransactionConsumer) MonitorChannel() {
 	for msg := range db.Channel {
 		receivedCount++
 		go func(message *sarama.ConsumerMessage) {
-			fmt.Printf("TransactionConsumer %d \n", receivedCount)
 			var tx protobuf2.Transaction
 			err := proto.Unmarshal(message.Value, &tx)
 			if err != nil {
@@ -231,24 +266,25 @@ func (db *TransactionConsumer) MonitorChannel() {
 				action: "addressDetail",
 				value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
 			}:
-				fmt.Printf("addressDetail sent\n")
+			default:
+				go sendOrRetry(db.AddressChannel, AddressChannelMessage{
+					action: "addressDetail",
+					value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
+				}, 1)
+			}
+
+			select {
 			case db.AddressChannel <- AddressChannelMessage{
 				action: "addressOnly",
 				value:  types.Address{Address: tx.To, LastSeen: bnum},
 			}:
-				fmt.Printf("addressOnly sent\n")
 			default:
-				fmt.Printf("AddressChannel not available for topic %s \n", message.Topic)
+				go sendOrRetry(db.AddressChannel, AddressChannelMessage{
+					action: "addressOnly",
+					value:  types.Address{Address: tx.To, LastSeen: bnum},
+				}, 1)
 			}
-			//db.AddressChannel <- AddressChannelMessage{
-			//	action: "addressDetail",
-			//	value:  types.Address{Address: tx.From, IsContract: false, Nonce: int64(tx.Nonce), LastSeen: bnum},
-			//}
-			//db.AddressChannel <- AddressChannelMessage{
-			//	action: "addressOnly",
-			//	value:  types.Address{Address: tx.To, LastSeen: bnum},
-			//}
-			//fmt.Printf("TransactionConsumer not available for topic %s \n", message.Topic)
+
 			go func(transaction *types.MongoTransaction) {
 				_, err := db.TransactionRepository.Add(*transaction, context.Background())
 
@@ -416,49 +452,3 @@ func (db *AddressConsumer) MonitorChannel() {
 
 	}
 }
-
-//type AddressDetailConsumer struct {
-//	TypeConsumer
-//	AddressRepository AddressRepository
-//}
-//
-//func (db *AddressDetailConsumer) monitorChannel() {
-//	for message := range db.Channel {
-//		_, err := db.AddressRepository.AddAddressDetail(*address)
-//		// Handle errors better
-//		if err != nil {
-//			utils.Logger.Info("%v", err)
-//			//return
-//		}
-//	}
-//}
-//
-//type ContractAddressConsumer struct {
-//	TypeConsumer
-//	AddressRepository AddressRepository
-//}
-//
-//func (db *ContractAddressConsumer) monitorChannel() {
-//	for message := range db.Channel {
-//		_, err := db.AddressRepository.AddContractAddress(*address)
-//		// Handle errors better
-//		if err != nil {
-//			utils.Logger.Errorf("Error from monitorAddContractAddressChannel: %v", err)
-//		}
-//	}
-//}
-
-//type AddressUpdateConsumer struct {
-//	Channel           chan *sarama.ConsumerMessage
-//	AddressRepository AddressRepository
-//}
-//
-//func (db *AddressUpdateConsumer) monitorChannel() {
-//	for message := range db.Channel {
-//		err := db.AddressRepository.Update(*address)
-//		// Handle errors better
-//		if err != nil {
-//			utils.Logger.Errorf("Error from monitorAddressUpdateChannel: %v", err)
-//		}
-//	}
-//}

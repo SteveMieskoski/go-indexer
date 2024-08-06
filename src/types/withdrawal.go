@@ -12,8 +12,6 @@ type Withdrawal struct {
 	Index          base.Value     `json:"index"`
 	Timestamp      base.Timestamp `json:"timestamp"`
 	ValidatorIndex base.Value     `json:"validatorIndex"`
-	// EXISTING_CODE
-	// EXISTING_CODE
 }
 
 func (s Withdrawal) String() string {

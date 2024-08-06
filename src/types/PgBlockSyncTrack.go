@@ -20,7 +20,6 @@ type PgBlockSyncTrack struct {
 }
 
 func (s PgBlockSyncTrack) String() string {
-	//bytes, _ := json.Marshal(s)
 	bytes, _ := json.MarshalIndent(s, "", "   ")
 	return string(bytes)
 }

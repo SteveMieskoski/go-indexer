@@ -5,6 +5,7 @@ import (
 	"github.com/IBM/sarama"
 	"src/types"
 	"src/utils"
+	"time"
 )
 
 var consumptionLogModulo = 500
@@ -91,15 +92,20 @@ func (db *databaseCoordinator) ConsumeMessage(consumeChannels map[string]chan *s
 	var counter int64 = 0
 	for message := range db.messageChannel {
 		counter++
-		go func() {
-			select {
-			case consumeChannels[message.Topic] <- message:
-				db.messageReceiptChannel <- counter
-			default:
-				fmt.Printf("Receiving channel not available for topic %s \n", message.Topic)
-				db.messageReceiptChannel <- counter // don't get hung up if the consuming channel is blocking
-			}
-		}()
+		go db.sendOrRetry(consumeChannels[message.Topic], message, counter, false, 1)
+		//go func() {
+		//	select {
+		//	case consumeChannels[message.Topic] <- message:
+		//		db.messageReceiptChannel <- counter
+		//	default:
+		//		fmt.Printf("Receiving channel not available for topic %s \n", message.Topic)
+		//		var holder *sarama.ConsumerMessage
+		//		holder := message
+		//		time.Sleep(10 * time.Millisecond)
+		//		db.messageReceiptChannel <- counter // don't get hung up if the consuming channel is blocking
+		//
+		//	}
+		//}()
 
 		//if message.Topic == types.TRANSACTION_TOPIC {
 		//	fmt.Printf("messageChannel %s \n", message.Topic)
@@ -114,6 +120,33 @@ func (db *databaseCoordinator) ConsumeMessage(consumeChannels map[string]chan *s
 	}
 
 	return nil
+}
+
+func (db *databaseCoordinator) sendOrRetry(sender chan *sarama.ConsumerMessage, message *sarama.ConsumerMessage, counter int64, confirmSent bool, tryCount int) {
+	if tryCount > 20 {
+		return
+	}
+	select {
+	case sender <- message:
+		if !confirmSent {
+			db.messageReceiptChannel <- counter // don't get hung up if the consuming channel is blocking
+		}
+
+	default:
+
+		if !confirmSent {
+			fmt.Printf("Receiving channel not available for topic %s \n", message.Topic)
+			db.messageReceiptChannel <- counter // don't get hung up if the consuming channel is blocking
+		} else {
+			fmt.Printf("Try %d - Receiving channel not available for topic %s \n", tryCount, message.Topic)
+		}
+		var holder sarama.ConsumerMessage
+		holder = *message
+		retryDelay := time.Duration(tryCount * 100)
+		time.Sleep(retryDelay * time.Millisecond)
+		tryCount++
+		db.sendOrRetry(sender, &holder, 0, true, tryCount)
+	}
 }
 
 func (db *databaseCoordinator) Close() {
