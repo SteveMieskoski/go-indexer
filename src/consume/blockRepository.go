@@ -11,8 +11,6 @@ import (
 	"src/utils"
 )
 
-//var collectionName = "blocks"
-
 type BlockRepository interface {
 	Add(appDoc types.MongoBlock, ctx context.Context) (string, error)
 	List(count int, ctx context.Context) ([]*types.MongoBlock, error)

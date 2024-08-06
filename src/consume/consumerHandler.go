@@ -2,10 +2,8 @@ package consume
 
 import (
 	"github.com/IBM/sarama"
-	"github.com/golang/protobuf/proto"
 	"os"
 	"os/signal"
-	protobuf2 "src/protobuf"
 	"src/types"
 	"src/utils"
 	"syscall"
@@ -75,55 +73,7 @@ func (consumer ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession
 				return nil
 			}
 
-			//consumer.DatabaseCoordinator.MessageChannel() <- message
-
-			switch message.Topic {
-			case types.BLOCK_TOPIC:
-				var block protobuf2.Block
-				err := proto.Unmarshal(message.Value, &block)
-				if err != nil {
-					return err
-				}
-				consumer.DatabaseCoordinator.AddBlock() <- consumer.DatabaseCoordinator.ConvertToBlock(&block)
-				break
-			case types.RECEIPT_TOPIC:
-				var receipt protobuf2.Receipt
-				err := proto.Unmarshal(message.Value, &receipt)
-				if err != nil {
-					return err
-				}
-				consumer.DatabaseCoordinator.AddReceipt() <- consumer.DatabaseCoordinator.ConvertToReceipt(&receipt)
-
-				for _, logVal := range receipt.Logs {
-					consumer.DatabaseCoordinator.AddLog() <- consumer.DatabaseCoordinator.ConvertToLog(logVal)
-				}
-				break
-			case types.BLOB_TOPIC:
-				var blob protobuf2.Blob
-				err := proto.Unmarshal(message.Value, &blob)
-				if err != nil {
-					return err
-				}
-				consumer.DatabaseCoordinator.AddBlob() <- consumer.DatabaseCoordinator.ConvertToBlob(&blob)
-				break
-			case types.TRANSACTION_TOPIC:
-				var tx protobuf2.Transaction
-				err := proto.Unmarshal(message.Value, &tx)
-				if err != nil {
-					return err
-				}
-				consumer.DatabaseCoordinator.AddTransaction() <- consumer.DatabaseCoordinator.ConvertToTransaction(&tx)
-				break
-			case types.ADDRESS_TOPIC:
-				var addr protobuf2.AddressDetails
-				err := proto.Unmarshal(message.Value, &addr)
-				if err != nil {
-					return err
-				}
-				consumer.DatabaseCoordinator.AddAddressBalance() <- consumer.DatabaseCoordinator.ConvertToAddress(&addr)
-				break
-			default:
-			}
+			consumer.DatabaseCoordinator.MessageChannel() <- message
 
 			session.MarkMessage(message, "")
 

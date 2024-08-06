@@ -4,18 +4,15 @@ go 1.22
 
 require (
 	github.com/IBM/sarama v1.43.2
-	github.com/alecthomas/participle/v2 v2.1.1
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/bykof/gostradamus v1.1.1
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/ethereum/go-ethereum v1.14.7
 	github.com/golang/protobuf v1.5.4
-	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/joho/godotenv v1.5.1
 	github.com/r3labs/sse/v2 v2.10.0
 	github.com/redis/go-redis/v9 v9.6.1
-	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.3
 	go.mongodb.org/mongo-driver v1.15.1
 	go.uber.org/zap v1.27.0
@@ -39,6 +36,7 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect

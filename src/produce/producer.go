@@ -3,7 +3,6 @@ package produce
 import (
 	"fmt"
 	"github.com/IBM/sarama"
-	"github.com/ethereum/go-ethereum/metrics"
 	"log"
 	"os"
 	"os/signal"
@@ -12,17 +11,6 @@ import (
 	//"strconv"
 	"sync"
 	"syscall"
-)
-
-var (
-	Version   = "7.0.0"
-	topic     = "test"
-	producers = 6
-	verbose   = true
-
-	recordsNumber int64 = 100
-
-	recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
 )
 
 // pool of producers that ensure transactional-id is unique.
@@ -38,7 +26,7 @@ type ProducerProvider struct {
 }
 
 func GenerateKafkaConfig() *sarama.Config {
-	version, err := sarama.ParseKafkaVersion(Version)
+	version, err := sarama.ParseKafkaVersion(types.KAFKA_VERSION)
 	if err != nil {
 		log.Panicf("Error parsing Kafka version: %v", err)
 	}
@@ -85,7 +73,7 @@ func NewProducerProvider(brokers []string, producerConfigurationProvider func() 
 }
 
 // ProduceBlock TODO: figure out how to properly generalize this function
-func (p *ProducerProvider) Produce(topic string, block []byte) bool {
+func (p *ProducerProvider) Produce(topic string, value []byte) bool {
 	producer := p.borrow()
 	defer p.release(producer)
 
@@ -98,7 +86,7 @@ func (p *ProducerProvider) Produce(topic string, block []byte) bool {
 
 	msg := &sarama.ProducerMessage{
 		Topic: topic,
-		Value: sarama.ByteEncoder(block),
+		Value: sarama.ByteEncoder(value),
 	}
 
 	producer.Input() <- msg

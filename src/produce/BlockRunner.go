@@ -28,7 +28,6 @@ type BlockRunner struct {
 	produceDelay             time.Duration
 	blockProcessor           BlockProcessor
 	redis                    redisdb.RedisClient
-	redisTrack               redisdb.RedisClient
 	blockRetriever           BlockRetriever
 	blockSyncTrack           PgBlockSyncTrackRepository
 	newBlockSyncTrack        func() PgBlockSyncTrackRepository
@@ -41,24 +40,8 @@ type BlockRunner struct {
 func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStruct) BlockRunner {
 
 	redisClient := redisdb.NewClient(1)
-	redisTrack := redisdb.NewClient(1)
 	blockRetriever := NewBlockRetriever(*redisClient)
 
-	// Reset Block Tracking in Redis
-	if idxConfig.ClearRedis {
-		_, err := redisClient.Del("blockNumberOnSyncStart")
-		if err != nil {
-			utils.Logger.Errorln(err)
-		}
-		_, err = redisClient.Del("priorCurrentBlock")
-		if err != nil {
-			utils.Logger.Errorln(err)
-		}
-		_, err = redisClient.Del("lastPriorBlockRetrieved")
-		if err != nil {
-			utils.Logger.Errorln(err)
-		}
-	}
 	blockSyncTracking := NewBlockSyncTrackRepository(NewClient(idxConfig))
 
 	pgRetryTrack := NewTrackForToRetryRepository(NewClient(idxConfig))
@@ -74,7 +57,6 @@ func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStru
 		lastBlock:                0,
 		firstBlockSeen:           0,
 		redis:                    *redisClient,
-		redisTrack:               *redisTrack,
 		blockProcessor:           blockProcessor,
 		blockRetriever:           *blockRetriever,
 		blockSyncTrack:           blockSyncTracking,

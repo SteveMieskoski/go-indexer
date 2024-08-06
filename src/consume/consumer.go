@@ -14,17 +14,6 @@ import (
 	"time"
 )
 
-var (
-	version   = "7.0.0"
-	topic     = "test"
-	producers = 6
-	verbose   = true
-
-	recordsNumber int64 = 100
-
-	//recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
-)
-
 // Consumer Sarama consumer group consumer
 type Consumer struct {
 	ready               chan bool
@@ -49,7 +38,7 @@ func DbConsumer(topics []string, DbCoordinator DatabaseCoordinator, idxConfig ty
 
 	sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 
-	version, err := sarama.ParseKafkaVersion(version)
+	version, err := sarama.ParseKafkaVersion(types.KAFKA_VERSION)
 	groupId := "mongo"
 
 	if err != nil {

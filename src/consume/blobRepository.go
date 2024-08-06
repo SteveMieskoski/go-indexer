@@ -29,32 +29,7 @@ func NewBlobRepository(client *mongo.Client, config *DatabaseSetting) BlobReposi
 }
 
 // TODO: identify a unique property to use as the id
-// TODO: identify fields that need to be indexed
-func (app *blobRepository) AddIndex() (string, error) {
-
-	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
-
-	indexModel := mongo.IndexModel{
-		Keys: bson.D{{"title", 1}},
-	}
-	name, err := collection.Indexes().CreateOne(context.TODO(), indexModel)
-	if err != nil {
-		panic(err)
-	}
-
-	app.indicesExist = true
-
-	return name, nil
-}
-
 func (app *blobRepository) Add(appDoc types.MongoBlob, ctx context.Context) (string, error) {
-	//if !app.indicesExist {
-	//	_, err := app.AddIndex()
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	app.indicesExist = true
-	//}
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
