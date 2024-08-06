@@ -1,4 +1,4 @@
-package kafka
+package consume
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"src/mongodb"
 	"src/postgres"
 	"src/types"
 	"src/utils"
@@ -16,18 +15,29 @@ import (
 	"time"
 )
 
+var (
+	version   = "7.0.0"
+	topic     = "test"
+	producers = 6
+	verbose   = true
+
+	recordsNumber int64 = 100
+
+	//recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
+)
+
 // Consumer Sarama consumer group consumer
 type Consumer struct {
 	ready               chan bool
 	terminateRun        bool
-	DatabaseCoordinator mongodb.DatabaseCoordinator
+	DatabaseCoordinator DatabaseCoordinator
 	PostgresCoordinator postgres.PostgresDB
 	PrimaryCoordinator  string
 	IdxConfig           types.IdxConfigStruct
 	ConsumerTopics      []string
 }
 
-func DbConsumer(topics []string, DbCoordinator mongodb.DatabaseCoordinator, idxConfig types.IdxConfigStruct) {
+func DbConsumer(topics []string, DbCoordinator DatabaseCoordinator, idxConfig types.IdxConfigStruct) {
 
 	sigusr1 := make(chan os.Signal, 1)
 	signal.Notify(sigusr1, syscall.SIGUSR1)

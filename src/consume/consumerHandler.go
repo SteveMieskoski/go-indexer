@@ -1,11 +1,10 @@
-package kafka
+package consume
 
 import (
 	"github.com/IBM/sarama"
 	"github.com/golang/protobuf/proto"
 	"os"
 	"os/signal"
-	"src/mongodb"
 	"src/postgres"
 	protobuf2 "src/protobuf"
 	"src/types"
@@ -16,7 +15,7 @@ import (
 type ConsumerHandler struct {
 	ready               chan bool
 	terminateRun        bool
-	DatabaseCoordinator mongodb.DatabaseCoordinator
+	DatabaseCoordinator DatabaseCoordinator
 	PostgresCoordinator postgres.PostgresDB
 	PrimaryCoordinator  string
 	IdxConfig           types.IdxConfigStruct

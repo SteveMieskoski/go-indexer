@@ -1,4 +1,4 @@
-package kafka
+package produce
 
 import (
 	"fmt"
@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	//brokers   = []string{"localhost:9092"}
-	version   = "7.0.0"
+	Version   = "7.0.0"
 	topic     = "test"
 	producers = 6
 	verbose   = true
@@ -25,11 +24,6 @@ var (
 
 	recordsRate = metrics.GetOrRegisterMeter("records.rate", nil)
 )
-
-//type Producer struct {
-//	producer  *kafka.Producer
-//	Connected bool
-//}
 
 // pool of producers that ensure transactional-id is unique.
 type ProducerProvider struct {
@@ -44,7 +38,7 @@ type ProducerProvider struct {
 }
 
 func GenerateKafkaConfig() *sarama.Config {
-	version, err := sarama.ParseKafkaVersion(version)
+	version, err := sarama.ParseKafkaVersion(Version)
 	if err != nil {
 		log.Panicf("Error parsing Kafka version: %v", err)
 	}

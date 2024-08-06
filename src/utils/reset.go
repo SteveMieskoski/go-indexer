@@ -1,17 +1,17 @@
-package kafka
+package utils
 
 import (
 	"github.com/IBM/sarama"
 	"os"
+	"src/produce"
 	"src/types"
-	"src/utils"
 	"strconv"
 	"time"
 )
 
 func ResetKafka() {
 	// DELETES/CLEARS EXISTING TOPICS
-	utils.Logger.Infof("DELETING/CLEARING EXISTING TOPICS")
+	Logger.Infof("DELETING/CLEARING EXISTING TOPICS")
 
 	brokerUri := os.Getenv("BROKER_URI")
 	broker := sarama.NewBroker(brokerUri)
@@ -20,13 +20,13 @@ func ResetKafka() {
 		panic(err)
 	}
 
-	versionNum, _ := strconv.ParseInt(version, 10, 0)
+	versionNum, _ := strconv.ParseInt(produce.Version, 10, 0)
 	_, err = broker.DeleteTopics(&sarama.DeleteTopicsRequest{
 		Version: int16(versionNum),
 		Topics:  []string{types.TRANSACTION_TOPIC, types.RECEIPT_TOPIC, types.BLOCK_TOPIC, types.LOG_TOPIC, types.BLOB_TOPIC, types.ADDRESS_TOPIC},
 	})
 	if err != nil {
-		utils.Logger.Errorf("Producer: unable to delete topics %s\n", err)
+		Logger.Errorf("Producer: unable to delete topics %s\n", err)
 	}
 	//utils.Logger.Infof("waiting for Kafka to finish clearing")
 	//time.Sleep(10 * time.Second)
@@ -62,7 +62,7 @@ func ResetKafka() {
 		ValidateOnly: false,
 	})
 	//broker.GetMetadata()
-	utils.Logger.Infof("waiting for Kafka to finish resetting")
+	Logger.Infof("waiting for Kafka to finish resetting")
 	time.Sleep(8 * time.Second)
 	// DeleteTopicsRequest
 }

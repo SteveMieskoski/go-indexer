@@ -1,10 +1,10 @@
-package engine
+package produce
 
 import (
+	"context"
 	"fmt"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/golang/protobuf/proto"
-	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
 	"src/types"
@@ -15,7 +15,7 @@ import (
 )
 
 type BlockProcessor struct {
-	producerFactory *kafka.ProducerProvider
+	producerFactory *ProducerProvider
 	blockRetriever  BlockRetriever
 	blockSyncTrack  postgres.PgBlockSyncTrackRepository
 	pgRetryTrack    postgres.PgTrackForToRetryRepository
@@ -23,7 +23,7 @@ type BlockProcessor struct {
 	produceDelay    time.Duration
 }
 
-func NewBlockProcessor(producerFactory *kafka.ProducerProvider, idxConfig types.IdxConfigStruct) BlockProcessor {
+func NewBlockProcessor(producerFactory *ProducerProvider, idxConfig types.IdxConfigStruct) BlockProcessor {
 
 	redisClient := redisdb.NewClient(1)
 	blockRetriever := NewBlockRetriever(*redisClient)
@@ -42,7 +42,7 @@ func NewBlockProcessor(producerFactory *kafka.ProducerProvider, idxConfig types.
 	}
 }
 
-func (r *BlockProcessor) processBlock(block types.Block, wg *sync.WaitGroup) bool {
+func (r *BlockProcessor) processBlock(ctx context.Context, block types.Block, wg *sync.WaitGroup) bool {
 
 	TransactionsProcessed := true
 	ReceiptsProcessed := true
@@ -56,9 +56,9 @@ func (r *BlockProcessor) processBlock(block types.Block, wg *sync.WaitGroup) boo
 	if completed {
 		convertedBlock := types.Block{}.MongoFromGoType(block)
 
-		TransactionsProcessed = r.processBlockTransactions(block, convertedBlock)
+		TransactionsProcessed = r.processBlockTransactions(ctx, block, convertedBlock)
 
-		ReceiptsProcessed = r.processBlockReceipts(convertedBlock, wg)
+		ReceiptsProcessed = r.processBlockReceipts(ctx, convertedBlock, wg)
 
 		updateComplete, err := r.updateSyncRecord(int(block.Number), ReceiptsProcessed, TransactionsProcessed)
 		if err != nil {
@@ -86,7 +86,7 @@ func (r *BlockProcessor) processBlock(block types.Block, wg *sync.WaitGroup) boo
 	return completed && ReceiptsProcessed && TransactionsProcessed
 }
 
-func (r *BlockProcessor) processBlockTransactions(block types.Block, convertedBlock types.MongoBlock) bool {
+func (r *BlockProcessor) processBlockTransactions(ctx context.Context, block types.Block, convertedBlock types.MongoBlock) bool {
 
 	TransactionsProcessed := true
 	for _, tx := range block.Transactions {
@@ -114,7 +114,7 @@ func (r *BlockProcessor) processBlockTransactions(block types.Block, convertedBl
 	return TransactionsProcessed
 }
 
-func (r *BlockProcessor) processBlockReceipts(convertedBlock types.MongoBlock, wg *sync.WaitGroup) bool {
+func (r *BlockProcessor) processBlockReceipts(ctx context.Context, convertedBlock types.MongoBlock, wg *sync.WaitGroup) bool {
 
 	addressesToCheck := addressToCheckStruct{
 		addressSet:  mapset.NewSet[string](),
@@ -123,7 +123,7 @@ func (r *BlockProcessor) processBlockReceipts(convertedBlock types.MongoBlock, w
 	}
 
 	ReceiptsProcessed := true
-	receipts, err := GetBlockReceipts(convertedBlock.Hash)
+	receipts, err := GetBlockReceipts(ctx, convertedBlock.Hash)
 
 	if err != nil {
 		utils.Logger.Error(err)
@@ -163,20 +163,20 @@ func (r *BlockProcessor) processBlockReceipts(convertedBlock types.MongoBlock, w
 	num, _ := strconv.Atoi(convertedBlock.Number)
 	addressesToCheck.blockNumber = int64(num)
 
-	r.processAddressesInBlock(addressesToCheck)
+	r.processAddressesInBlock(ctx, addressesToCheck)
 
 	return ReceiptsProcessed
 }
 
 // The batch call to erigon (at least) is returning incorrectly.
-func (r *BlockProcessor) processAddressesInBlock(addressesToCheck addressToCheckStruct) {
+func (r *BlockProcessor) processAddressesInBlock(ctx context.Context, addressesToCheck addressToCheckStruct) {
 
 	setIterator := addressesToCheck.addressSet.ToSlice()
 
 	for _, addr := range setIterator {
 		// excluding null address. such as with contract creation
 		if addr != "0x0" {
-			balanceHex, txCountHex, blockNumber, err := r.blockRetriever.GetAddressBalance(addr, addressesToCheck.blockNumber)
+			balanceHex, txCountHex, blockNumber, err := r.blockRetriever.GetAddressBalance(ctx, addr, addressesToCheck.blockNumber)
 			if err != nil {
 				utils.Logger.Errorln(err)
 				return

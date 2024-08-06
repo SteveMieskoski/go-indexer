@@ -1,4 +1,4 @@
-package engine
+package produce
 
 import (
 	"context"
@@ -28,64 +28,54 @@ func NewBlockRetriever(redisClient redisdb.RedisClient) *BlockRetriever {
 	return &BlockRetriever{redisClient}
 }
 
-func (b BlockRetriever) BlockHeaderChannel() chan types.Block {
+func (b BlockRetriever) BlockHeaderChannel(ctx context.Context) chan types.Block {
 
-	// Connect the client.
 	url := os.Getenv("WS_RPC_URL")
-	//WS_RPC_URL
 	client, _ := rpc.Dial(url)
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	subch := make(chan types.Block)
 
 	go func() {
 
 		// Ensure that subch receives the latest block.
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		innerContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
 		// Subscribe to new blocks.
-		sub, err := client.EthSubscribe(ctx, subch, "newHeads")
+		sub, err := client.EthSubscribe(innerContext, subch, "newHeads")
 		if err != nil {
 			utils.Logger.Error("subscribe error:", err)
 			return
 		}
 
-		sig := <-sigs
-		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-			sub.Unsubscribe()
-			utils.Logger.Info("exiting: GetBlocks")
-			defer close(subch)
+		select {
+		case <-innerContext.Done():
+			fmt.Println("signal received")
 			return
+		default:
 		}
+
 		utils.Logger.Error("connection lost: ", <-sub.Err())
 	}()
 
 	return subch
 }
 
-func (b BlockRetriever) GetBlocks() chan types.Block {
+func (b BlockRetriever) GetBlocks(ctx context.Context) chan types.Block {
 
-	// Connect the client.
 	url := os.Getenv("WS_RPC_URL")
-	//WS_RPC_URL
 	client, _ := rpc.Dial(url)
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	subch := make(chan types.Block)
 
 	go func() {
 
 		// Ensure that subch receives the latest block.
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		innerContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
 		// Subscribe to new blocks.
-		sub, err := client.EthSubscribe(ctx, subch, "newHeads")
+		sub, err := client.EthSubscribe(innerContext, subch, "newHeads")
 		if err != nil {
 			utils.Logger.Error("subscribe error:", err)
 			return
@@ -93,12 +83,11 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 
 		time.Sleep(5 * time.Millisecond)
 
-		sig := <-sigs
-		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-			sub.Unsubscribe()
-			utils.Logger.Info("exiting: GetBlocks")
-			defer close(subch)
+		select {
+		case <-innerContext.Done():
+			fmt.Println("signal received")
 			return
+		default:
 		}
 		utils.Logger.Error("connection lost: ", <-sub.Err())
 	}()
@@ -106,8 +95,8 @@ func (b BlockRetriever) GetBlocks() chan types.Block {
 	return subch
 }
 
-func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
-	// Connect the client.
+func (b BlockRetriever) GetBlock(ctx context.Context, blockToGet int) types.Block {
+
 	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 
@@ -116,14 +105,14 @@ func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
 	defer close(sigs)
 
 	// Ensure that subch receives the latest block.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	innerContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// The connection is established now.
 	// Update the channel with the current block.
 	var lastBlock types.Block
 	blockNumberToRetreive := strconv.FormatInt(int64(blockToGet), 16)
-	err := client.CallContext(ctx, &lastBlock, "eth_getBlockByNumber", "0x"+blockNumberToRetreive, true)
+	err := client.CallContext(innerContext, &lastBlock, "eth_getBlockByNumber", "0x"+blockNumberToRetreive, true)
 	if err != nil {
 		utils.Logger.Error("can't get block:", err)
 	}
@@ -132,7 +121,7 @@ func (b BlockRetriever) GetBlock(blockToGet int) types.Block {
 	return lastBlock
 }
 
-func (b BlockRetriever) LatestBlock() int {
+func (b BlockRetriever) LatestBlock(ctx context.Context) int {
 	// Connect the client.
 	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
@@ -142,13 +131,13 @@ func (b BlockRetriever) LatestBlock() int {
 	defer close(sigs)
 
 	// Ensure that subch receives the latest block.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	innerContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// The connection is established now.
 	// Update the channel with the current block.
 	var latestBlock string
-	err := client.CallContext(ctx, &latestBlock, "eth_blockNumber")
+	err := client.CallContext(innerContext, &latestBlock, "eth_blockNumber")
 	if err != nil {
 		utils.Logger.Error("can't get block:", err)
 	}
@@ -158,13 +147,9 @@ func (b BlockRetriever) LatestBlock() int {
 }
 
 func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) ([]rpc.BatchElem, error) {
-	// Connect the client.
+
 	url := os.Getenv("WS_RPC_URL")
 	client, _ := rpc.Dial(url)
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	defer close(sigs)
 
 	var lastBlock []rpc.BatchElem
 
@@ -186,22 +171,21 @@ func (b BlockRetriever) GetBlockBatch(firstBlockToGet int, lastBlockToGet int) (
 		return nil, err
 	}
 
-	//utils.Logger.Infof("retrieved block %d", blockToGet)
 	return lastBlock, nil
 }
-func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (string, string, int64, error) {
+func (b BlockRetriever) GetAddressBalance(ctx context.Context, address string, blockNumber int64) (string, string, int64, error) {
 
 	if len(address) < 42 {
 		return "", "", blockNumber, fmt.Errorf("======================== invalid address %v", address)
 	}
-	// Connect the client.
+
 	url := os.Getenv("HTTP_RPC_URL")
 	client, err := rpc.Dial(url)
 	if err != nil {
 		utils.Logger.Error("error connecting to RPC endpoint:", err)
 		return "", "", blockNumber, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	innerContext, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -212,20 +196,20 @@ func (b BlockRetriever) GetAddressBalance(address string, blockNumber int64) (st
 	var balance string
 	var txCount string
 
-	err = client.CallContext(ctx, &balance, "eth_getBalance", address, "0x"+blockNumberHex)
+	err = client.CallContext(innerContext, &balance, "eth_getBalance", address, "0x"+blockNumberHex)
 
 	if err != nil {
 		utils.Logger.Error("can't get Balances:", err)
 		return "", "", blockNumber, err
 	}
 
-	err = client.CallContext(ctx, &txCount, "eth_getTransactionCount", address, "0x"+blockNumberHex)
+	err = client.CallContext(innerContext, &txCount, "eth_getTransactionCount", address, "0x"+blockNumberHex)
 
 	return balance, txCount, blockNumber, nil
 }
 
 func (b BlockRetriever) GetAddressDetailsBatch(addressList []string, blockNumber int64) ([]rpc.BatchElem, int64, error) {
-	// Connect the client.
+
 	url := os.Getenv("WS_RPC_URL")
 	client, _ := rpc.Dial(url)
 
@@ -282,7 +266,7 @@ func (b BlockRetriever) GetTransaction(txHash string) types.Transaction {
 	return lastBlock
 }
 
-func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
+func (b BlockRetriever) GetTransactionReceipt(ctx context.Context, txHash string) types.Receipt {
 	// Connect the client.
 	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
@@ -292,13 +276,13 @@ func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
 	defer close(sigs)
 
 	// Ensure that subch receives the latest block.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	innerContext, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// The connection is established now.
 	// Update the channel with the current block.
 	var lastBlock types.Receipt
-	err := client.CallContext(ctx, &lastBlock, "eth_getTransactionReceipt", txHash)
+	err := client.CallContext(innerContext, &lastBlock, "eth_getTransactionReceipt", txHash)
 	if err != nil {
 		utils.Logger.Error("can't get receipt:", err)
 	}
@@ -307,15 +291,12 @@ func (b BlockRetriever) GetTransactionReceipt(txHash string) types.Receipt {
 	return lastBlock
 }
 
-func GetBlockReceipts(blockHash string) (types.Receipts, error) {
+func GetBlockReceipts(ctx context.Context, blockHash string) (types.Receipts, error) {
 	url := os.Getenv("HTTP_RPC_URL")
 	client, _ := rpc.Dial(url)
 	defer client.Close()
 
 	subch := make(chan types.Receipts)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	defer close(subch)
 	// Hold result in r of types.Receipts

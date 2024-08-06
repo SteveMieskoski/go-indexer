@@ -1,4 +1,4 @@
-package engine
+package produce
 
 import (
 	"context"
@@ -109,7 +109,7 @@ func (r *BlockRunner) StartBlockSync() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	blockNumber := r.blockRetriever.LatestBlock()
+	blockNumber := r.blockRetriever.LatestBlock(ctx)
 
 	err := r.redis.Set("blockNumberOnSyncStart", blockNumber)
 	if err != nil {
@@ -140,25 +140,23 @@ func (r *BlockRunner) StartBlockSync() {
 	default:
 	}
 
-	go r.getPriorBlocks()
-	r.listenForCurrentBlock()
+	go r.getPriorBlocks(ctx)
+	r.listenForCurrentBlock(ctx)
 }
 
-func (r *BlockRunner) listenForCurrentBlock() {
+func (r *BlockRunner) listenForCurrentBlock(ctx context.Context) {
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 	dbAccess := r.newBlockSyncTrack()
 
 	blockRetriever := NewBlockRetriever(r.redis)
-	blockGen := blockRetriever.BlockHeaderChannel()
+	blockGen := blockRetriever.BlockHeaderChannel(ctx)
 	var wg sync.WaitGroup
 
 	for latestBlock := range blockGen {
 		r.pauseRunner.Wait()
 		utils.Logger.Infof("Recieved latest block: %d", latestBlock.Number)
 
-		block := blockRetriever.GetBlock(int(latestBlock.Number))
+		block := blockRetriever.GetBlock(ctx, int(latestBlock.Number))
 		_, err := dbAccess.Add(types.PgBlockSyncTrack{
 			Number:                int64(block.Number),
 			Hash:                  block.Hash.String(),
@@ -176,7 +174,7 @@ func (r *BlockRunner) listenForCurrentBlock() {
 			continue
 		}
 		wg.Add(1)
-		r.blockProcessor.processBlock(block, &wg)
+		r.blockProcessor.processBlock(ctx, block, &wg)
 
 		val, err := r.redis.Get("priorCurrentBlock")
 		if err != nil {
@@ -185,7 +183,7 @@ func (r *BlockRunner) listenForCurrentBlock() {
 		}
 		valNum, _ := strconv.Atoi(val)
 		if int(latestBlock.Number)-valNum > 1 {
-			go r.getPriorBlocksInRange(valNum+1, int(latestBlock.Number)-1)
+			go r.getPriorBlocksInRange(ctx, valNum+1, int(latestBlock.Number)-1)
 		}
 
 		err = r.redis.Set("priorCurrentBlock", int64(block.Number))
@@ -199,13 +197,12 @@ func (r *BlockRunner) listenForCurrentBlock() {
 		}
 
 		if r.errorCount >= 100 {
-			r.RetryFailedRetrievals()
+			r.RetryFailedRetrievals(ctx)
 		}
 	}
 
 	select {
 	case <-ctx.Done():
-		stop()
 		fmt.Println("signal received")
 		return
 	default:
@@ -213,11 +210,9 @@ func (r *BlockRunner) listenForCurrentBlock() {
 
 }
 
-func (r *BlockRunner) getPriorBlocks() {
+func (r *BlockRunner) getPriorBlocks(ctx context.Context) {
 
 	dbAccess := r.newBlockSyncTrack()
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	Num, _ := r.redis.Get("blockNumberOnSyncStart")
 	blockNumberOnSyncStart, _ := strconv.Atoi(Num)
@@ -296,7 +291,7 @@ func (r *BlockRunner) getPriorBlocks() {
 				}
 
 				go func() {
-					produceOk := r.blockProcessor.processBlock(*block, &wg)
+					produceOk := r.blockProcessor.processBlock(ctx, *block, &wg)
 					if produceOk {
 						if r.produceDelay >= 200 {
 							r.produceDelay = r.produceDelay - 100
@@ -314,7 +309,6 @@ func (r *BlockRunner) getPriorBlocks() {
 
 		select {
 		case <-ctx.Done():
-			stop()
 			fmt.Println("signal received")
 			return
 		default:
@@ -342,15 +336,13 @@ func (r *BlockRunner) getPriorBlocks() {
 	}
 
 	utils.Logger.Info("exiting: getPriorBlock External")
-	r.RetryFailedRetrievals()
+	r.RetryFailedRetrievals(ctx)
 }
 
 // TODO: this could be used as the runner for getting past blocks
-func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
+func (r *BlockRunner) getPriorBlocksInRange(ctx context.Context, startBlock int, endBlock int) {
 
 	dbAccess := r.newBlockSyncTrack()
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	lastBlockRetrieved := startBlock
 
@@ -402,7 +394,7 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 				}
 
 				go func() {
-					produceOk := r.blockProcessor.processBlock(*block, &wg)
+					produceOk := r.blockProcessor.processBlock(ctx, *block, &wg)
 					if produceOk {
 						if r.produceDelay >= 200 {
 							r.produceDelay = r.produceDelay - 100
@@ -420,7 +412,6 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 
 		select {
 		case <-ctx.Done():
-			stop()
 			fmt.Println("signal received")
 			return
 		default:
@@ -432,10 +423,10 @@ func (r *BlockRunner) getPriorBlocksInRange(startBlock int, endBlock int) {
 
 	fmt.Printf("Last Block Retreived at EXIT %d \n", lastBlockRetrieved)
 	utils.Logger.Info("exiting: getPriorBlock External")
-	r.RetryFailedRetrievals()
+	r.RetryFailedRetrievals(ctx)
 }
 
-func (r *BlockRunner) RetryFailedRetrievals() {
+func (r *BlockRunner) RetryFailedRetrievals(ctx context.Context) {
 	utils.Logger.Info("RetryFailedRetrievals START")
 	r.pauseRunner.Add(1)
 
@@ -452,8 +443,8 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	for _, tx := range blocksToRetry {
 		wg.Add(1)
 		bNum, _ := strconv.Atoi(tx.BlockId)
-		block := r.blockRetriever.GetBlock(bNum)
-		completed := r.blockProcessor.processBlock(block, &wg)
+		block := r.blockRetriever.GetBlock(ctx, bNum)
+		completed := r.blockProcessor.processBlock(ctx, block, &wg)
 		//completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 		if completed {
 			_, err := r.pgRetryTrack.Delete(tx.Id)
@@ -491,7 +482,7 @@ func (r *BlockRunner) RetryFailedRetrievals() {
 	receiptsToRetry, _ := r.pgRetryTrack.GetByDataType(types.RECEIPT_TOPIC)
 
 	for _, receipt := range receiptsToRetry {
-		txReceipt := r.blockRetriever.GetTransactionReceipt(receipt.RecordId)
+		txReceipt := r.blockRetriever.GetTransactionReceipt(ctx, receipt.RecordId)
 		pbReceipt := types.Receipt{}.ProtobufFromGoType(txReceipt)
 		receiptToSend, err := proto.Marshal(&pbReceipt)
 		if err != nil {

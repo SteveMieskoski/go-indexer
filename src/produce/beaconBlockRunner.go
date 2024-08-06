@@ -1,11 +1,10 @@
-package engine
+package produce
 
 import (
 	"context"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"os/signal"
-	"src/kafka"
 	"src/postgres"
 	"src/redisdb"
 	"src/types"
@@ -20,14 +19,14 @@ type BeaconBlockRunner struct {
 	priorRetrievalInProgress bool
 	priorBeaconBlock         int
 	currentBeaconBlock       int
-	producerFactory          *kafka.ProducerProvider
+	producerFactory          *ProducerProvider
 	redis                    redisdb.RedisClient
 	pgSlotSyncTrack          postgres.PgSlotSyncTrackRepository
 	pgRetryTrack             postgres.PgTrackForToRetryRepository
 	produceDelay             time.Duration
 }
 
-func NewBeaconBlockRunner(producerFactory *kafka.ProducerProvider, idxConfig types.IdxConfigStruct) BeaconBlockRunner {
+func NewBeaconBlockRunner(producerFactory *ProducerProvider, idxConfig types.IdxConfigStruct) BeaconBlockRunner {
 
 	redisClient := redisdb.NewClient(2)
 	pgSlotSyncTrack := postgres.NewSlotSyncTrackRepository(postgres.NewClient(idxConfig))

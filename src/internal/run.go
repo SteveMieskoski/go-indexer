@@ -2,8 +2,7 @@ package internal
 
 import (
 	"os"
-	"src/engine"
-	"src/kafka"
+	"src/produce"
 
 	//"src/kafka"
 	//"src/mongodb"
@@ -23,8 +22,8 @@ func Run(idxConfig types.IdxConfigStruct) {
 	brokers := os.Getenv("BROKER_URI")
 	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
-	blockProcessor := engine.NewBlockProcessor(kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig), idxConfig)
-	runs := engine.NewBlockRunner(blockProcessor, idxConfig)
+	blockProcessor := produce.NewBlockProcessor(produce.NewProducerProvider([]string{brokers}, produce.GenerateKafkaConfig, idxConfig), idxConfig)
+	runs := produce.NewBlockRunner(blockProcessor, idxConfig)
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
