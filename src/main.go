@@ -7,7 +7,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
-	"src/internal"
+	"src/consume"
+	"src/produce"
 	"src/types"
 	"src/utils"
 )
@@ -110,10 +111,10 @@ func main() {
 
 	if IdxConfig.RunAsProducer {
 		utils.Logger.Info("starting as producer")
-		internal.Run(IdxConfig)
+		produce.Run(IdxConfig)
 	} else {
 		utils.Logger.Info("starting as consumer")
-		internal.ConsumerRun(IdxConfig)
+		consume.ConsumerRun(IdxConfig)
 	}
 
 	//println(*mode) // todo remove dev item

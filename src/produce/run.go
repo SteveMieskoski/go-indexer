@@ -1,9 +1,7 @@
-package internal
+package produce
 
 import (
 	"os"
-	"src/produce"
-
 	//"src/kafka"
 	//"src/mongodb"
 	"src/types"
@@ -22,8 +20,8 @@ func Run(idxConfig types.IdxConfigStruct) {
 	brokers := os.Getenv("BROKER_URI")
 	//producerFactory := kafka.NewProducerProvider([]string{brokers}, kafka.GenerateKafkaConfig, idxConfig)
 
-	blockProcessor := produce.NewBlockProcessor(produce.NewProducerProvider([]string{brokers}, produce.GenerateKafkaConfig, idxConfig), idxConfig)
-	runs := produce.NewBlockRunner(blockProcessor, idxConfig)
+	blockProcessor := NewBlockProcessor(NewProducerProvider([]string{brokers}, GenerateKafkaConfig, idxConfig), idxConfig)
+	runs := NewBlockRunner(blockProcessor, idxConfig)
 
 	//beaconBlockRunner.StartBeaconSync()
 	//
