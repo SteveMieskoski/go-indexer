@@ -1,13 +1,9 @@
 
-# In Progress
+A Golang familiarization project
 
 ## Ethereum Indexer in GO
 
-A basic project to both learn go and build a useful tool for the web3 community
-
-Additionally, this project is planned to complement a multi-chain local docker environment also in progress.
-
-A primary goal of this project is to 
+A basic project to serve dual purposes of learning Golang and potentially building useful tool for the web3 community
 
 ## Current Components
 - Kafka broker
