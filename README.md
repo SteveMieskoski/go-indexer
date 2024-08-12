@@ -11,5 +11,7 @@ A basic project to serve dual purposes of learning Golang and potentially buildi
 - data store (Currently MongoDB)
 
 ## Running
+- run script to start docker hosting the system components
+- `launchDevEnv.sh -i`
 - 
 
