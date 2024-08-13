@@ -1,5 +1,5 @@
 
-A Golang familiarization project
+**A Golang familiarization project**
 
 ## Ethereum Indexer in GO
 
