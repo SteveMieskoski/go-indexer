@@ -11,6 +11,7 @@ A basic project to serve dual purposes of learning Golang and potentially buildi
 - `backend` contains an api server to serve indexed content to a frontend
 
 
+
 ## Docker Components
 ### Infrastructure
 - Kafka broker
@@ -32,4 +33,5 @@ A basic project to serve dual purposes of learning Golang and potentially buildi
 - Run `make` to build go-indexer
 - Use `./build/bin/go-indexer` to start go-indexer as a producer extracting blockchain data from the RPC endpoints in the env file
 - Use `./build/bin/go-indexer --run-as-producer=false` to start go-indexer as a consumer to parse the extracted blockchain data into the DBs 
+
 
