@@ -14,17 +14,19 @@ import (
 )
 
 var (
-	//mode      = flag.String("mode", "produce", "Mode to run in: \"produce\" to produce, \"consume\" to consume")
 	IdxConfig = types.IdxConfigStruct{}
 )
 
 func main() {
-	//flag.Parse()
 	utils.InitializeLogger()
 	err := godotenv.Load("../.env")
 	//err := godotenv.Load("../.env-remote")
 	if err != nil {
 		utils.Logger.Fatalf("Error loading .env file")
+		err := godotenv.Load("../.env-example")
+		if err != nil {
+			utils.Logger.Fatalf("Error loading .env-example file")
+		}
 	}
 
 	app := &cli.App{
@@ -79,26 +81,6 @@ func main() {
 				IdxConfig.ClearPostgres = true
 				IdxConfig.ClearRedis = true
 			}
-			//if cCtx.Bool("clear-kafka") {
-			//	fmt.Println("clear.kafka")
-			//} else {
-			//	fmt.Println("No clear.kafka")
-			//}
-			//if cCtx.Bool("clear-postgres") {
-			//	fmt.Println("clear.postgres")
-			//} else {
-			//	fmt.Println("No clear.postgres")
-			//}
-			//if cCtx.Bool("run-as-producer") {
-			//	fmt.Println("Do run-as-producer")
-			//} else {
-			//	fmt.Println("RUN NOT AS PRODUCER")
-			//}
-			//if cCtx.Bool("disable-beacon") {
-			//	fmt.Println("Do disable-beacon")
-			//} else {
-			//	fmt.Println("NO disable-beacon")
-			//}
 			return nil
 		},
 	}
@@ -116,17 +98,4 @@ func main() {
 		utils.Logger.Info("starting as consumer")
 		consume.ConsumerRun(IdxConfig)
 	}
-
-	//println(*mode) // todo remove dev item
-	//if *mode == "consume" {
-	//	utils.Logger.Info("starting as consumer")
-	//	internal.ConsumerRun()
-	//	// []string{"Block", "Receipt", "Blob"}
-	//	//kafka.NewMongoDbConsumer()
-	//}
-	//
-	//if *mode == "produce" {
-	//	utils.Logger.Info("starting as producer")
-	//	internal.Run()
-	//}
 }
