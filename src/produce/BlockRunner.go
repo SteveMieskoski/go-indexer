@@ -69,20 +69,7 @@ func NewBlockRunner(blockProcessor BlockProcessor, idxConfig types.IdxConfigStru
 }
 
 func (r *BlockRunner) Demo() {
-	//balance, blockNumber, err := r.blockRetriever.GetAddressBalance("0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27", 2003762)
-	//if err != nil {
-	//	return
-	//}
-	//fmt.Printf("%v, %v\n", balance, blockNumber)
-	//parseInt, err := strconv.ParseInt(balance[2:], 16, 64)
-	//
-	//CollectedAddress := types.AddressBalance{
-	//	Address:  "0x02cD57cD479AFC7d4ba49275dC8F75706B3aaa27",
-	//	LastSeen: blockNumber,
-	//	Balance:  parseInt,
-	//}
-	//
-	//println(CollectedAddress.String())
+
 }
 
 func (r *BlockRunner) StartBlockSync() {
@@ -107,7 +94,6 @@ func (r *BlockRunner) StartBlockSync() {
 		err := r.redis.Set("retrievalErrorCount", errorCount)
 		if err != nil {
 			utils.Logger.Errorln(err)
-			//return
 		}
 	}
 
@@ -204,7 +190,6 @@ func (r *BlockRunner) getPriorBlocks(ctx context.Context) {
 		err := r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
 		if err != nil {
 			utils.Logger.Errorln(err)
-			//return
 		}
 	} else {
 		lastBlockRetrieved, _ = strconv.Atoi(val)
@@ -308,7 +293,6 @@ func (r *BlockRunner) getPriorBlocks(ctx context.Context) {
 		err = r.redis.Set("lastPriorBlockRetrieved", lastBlockRetrieved)
 		if err != nil {
 			utils.Logger.Errorln(err)
-			//return
 		}
 		err = r.redis.Set("retrievalErrorCount", r.errorCount)
 		if err != nil {
@@ -426,7 +410,6 @@ func (r *BlockRunner) RetryFailedRetrievals(ctx context.Context) {
 		bNum, _ := strconv.Atoi(tx.BlockId)
 		block := r.blockRetriever.GetBlock(ctx, bNum)
 		completed := r.blockProcessor.processBlock(ctx, block, &wg)
-		//completed := r.producerFactory.Produce(types.BLOCK_TOPIC, block)
 		if completed {
 			_, err := r.pgRetryTrack.Delete(tx.Id)
 			if err != nil {

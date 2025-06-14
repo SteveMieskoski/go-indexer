@@ -168,10 +168,6 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 		lastSlotRetrieved, _ = strconv.Atoi(val)
 	}
 
-	// TODO: See TODO below
-	//slotsPerBatch := 10
-	//completedOk := true
-
 	for lastSlotRetrieved <= slotNumberOnSyncStart {
 
 		if lastSlotRetrieved%50 == 0 {
@@ -204,49 +200,6 @@ func (b *BeaconBlockRunner) getPriorSlots() {
 		if err != nil {
 			utils.Logger.Errorln(err)
 		}
-		//time.Sleep(100 * time.Millisecond)
-		// TODO: Revisit sending a number of calls all at once, but need to sync or respond to the
-		// TODO: pace of the BlockRunner because when both are trying to commit to Kafka several fail
-		//batchEndSlot := lastSlotRetrieved + slotsPerBatch
-		//
-		//if batchEndSlot >= slotNumberOnSyncStart {
-		//	batchEndSlot = slotNumberOnSyncStart
-		//}
-		//
-		//fmt.Printf("Getting Blobs for Prior Slot %d\n", lastSlotRetrieved)
-		//
-		//var wg sync.WaitGroup
-		//
-		//for i := lastSlotRetrieved; i < batchEndSlot; i++ {
-		//
-		//	sideCar := engine.GetBlobSideCars(strconv.Itoa(i))
-		//
-		//	wg.Add(1)
-		//	_, errr := b.pgSlotSyncTrack.Add(types.PgSlotSyncTrack{
-		//		Slot:           int64(i),
-		//		Retrieved:      true,
-		//		Processed:      false,
-		//		BlobsProcessed: false,
-		//		BlobCount:      int64(len(sideCar.Data)),
-		//	})
-		//
-		//	if errr != nil {
-		//		utils.Logger.Errorln(errr)
-		//	}
-		//	go func() {
-		//		completedOk = b.processBlobSideCars(strconv.Itoa(i), sideCar, &wg)
-		//	}()
-		//
-		//	if !completedOk {
-		//		slotsPerBatch = 1
-		//	} else if slotsPerBatch < 5 {
-		//		slotsPerBatch = slotsPerBatch + 1
-		//	}
-		//}
-		//
-		//lastSlotRetrieved = batchEndSlot + 1
-		//
-		//wg.Wait()
 	}
 
 	utils.Logger.Info("exiting: getPriorSlot External")

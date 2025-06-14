@@ -102,20 +102,6 @@ func (e *Wei) UnmarshalJSON(data []byte) error {
 	return (*big.Int)(e).UnmarshalText([]byte(str))
 }
 
-//func (w *Wei) UnmarshalCache(version uint64, reader io.Reader) error {
-//	var v big.Int
-//	if err := cache.ReadValue(reader, &v, version); err != nil {
-//		return err
-//	}
-//	*w = (Wei)(v)
-//	return nil
-//}
-//
-//func (w *Wei) MarshalCache(writer io.Writer) error {
-//	v := *w.ToInt()
-//	return cache.WriteValue(writer, &v)
-//}
-
 func (w *Wei) UnmarshalText(text []byte) error {
 	return (*big.Int)(w).UnmarshalText(text)
 }

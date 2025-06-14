@@ -78,7 +78,6 @@ func (db *BlockConsumer) MonitorChannel() {
 			_, err = db.BlockRepository.Add(*types.Block{}.MongoFromProtobufType(&block), context.Background())
 			if err != nil {
 				utils.Logger.Errorf("Error from consumer for block: %v", err)
-				//return
 			}
 			if receivedCount%consumptionLogModulo == 0 {
 				fmt.Printf("Processed %d Blocks\n", receivedCount)
@@ -170,7 +169,6 @@ func (db *ReceiptConsumer) MonitorChannel() {
 
 			if err != nil {
 				utils.Logger.Errorf("Error from consumer for receipt: %v", err)
-				//return
 			}
 			if receivedCount%consumptionLogModulo == 0 {
 				fmt.Printf("Processed %d Receipts\n", receivedCount)
@@ -200,7 +198,6 @@ func (db *ReceiptConsumer) extractLogs(logs []*protobuf2.Log) {
 		_, err := db.LogRepository.Add(*types.Log{}.MongoFromProtobufType(*log), context.Background())
 		if err != nil {
 			utils.Logger.Errorf("Error from consumer for log: %v", err)
-			//return
 		}
 
 		if receivedCount%consumptionLogModulo == 0 {
@@ -256,7 +253,6 @@ func (db *TransactionConsumer) MonitorChannel() {
 			err := proto.Unmarshal(message.Value, &tx)
 			if err != nil {
 				utils.Logger.Errorf("Error from unmarshal for transaction: %v", err)
-				//return
 			}
 
 			bnum, _ := strconv.ParseInt(tx.BlockNumber, 16, 64)
@@ -290,7 +286,6 @@ func (db *TransactionConsumer) MonitorChannel() {
 
 				if err != nil {
 					utils.Logger.Errorf("Error from consumer for transaction: %v", err)
-					//return
 				}
 			}(types.Transaction{}.MongoFromProtobufType(tx))
 
@@ -347,7 +342,6 @@ func (db *BlobConsumer) MonitorChannel() {
 			// Handle errors better
 			if err != nil {
 				utils.Logger.Errorf("Error from consumer for blob: %v", err)
-				//return
 			}
 
 			if receivedCount%consumptionLogModulo == 0 {
@@ -386,21 +380,18 @@ func (db *AddressChannelConsumer) MonitorChannel() {
 				// Handle errors better
 				if err != nil {
 					utils.Logger.Info("%v", err)
-					//return
 				}
 				break
 			case "addressDetail":
 				_, err := db.AddressRepository.AddAddressDetail(msg.value)
 				if err != nil {
 					utils.Logger.Info("%v", err)
-					//return
 				}
 				break
 			case "addressContract":
 				_, err := db.AddressRepository.AddContractAddress(msg.value)
 				if err != nil {
 					utils.Logger.Info("%v", err)
-					//return
 				}
 				break
 

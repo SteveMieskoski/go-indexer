@@ -46,13 +46,6 @@ func (app *logRepository) AddIndex() (string, error) {
 }
 
 func (app *logRepository) Add(appDoc types.MongoLog, ctx context.Context) (string, error) {
-	//if !app.indicesExist {
-	//	_, err := app.AddIndex()
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	app.indicesExist = true
-	//}
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 

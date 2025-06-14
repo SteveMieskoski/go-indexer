@@ -70,7 +70,6 @@ func GetBeaconHeaderBySlot(slotNum string) *types.BeaconHeadersResponse {
 		fmt.Printf("client: could not read response body: %s\n", err)
 		os.Exit(1)
 	}
-	//fmt.Printf("client: response body: %s\n", resBody[0:60000])
 
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -101,7 +100,6 @@ func GetBeaconHeader() *types.BeaconHeadersResponse {
 		fmt.Printf("client: could not read response body: %s\n", err)
 		os.Exit(1)
 	}
-	//fmt.Printf("client: response body: %s\n", resBody[0:60000])
 
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()

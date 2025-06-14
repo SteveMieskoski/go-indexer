@@ -48,13 +48,6 @@ func (app *transactionRepository) AddIndex() (string, error) {
 
 // TODO: identify fields that need to be indexed
 func (app *transactionRepository) Add(appDoc types.MongoTransaction, ctx context.Context) (string, error) {
-	//if !app.indicesExist {
-	//	_, err := app.AddIndex()
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	app.indicesExist = true
-	//}
 
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 

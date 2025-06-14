@@ -55,15 +55,6 @@ func (h *Hash) IsZero() bool {
 	return v == "0x0000000000000000000000000000000000000000000000000000000000000000"
 }
 
-//func (h *Hash) UnmarshalCache(version uint64, reader io.Reader) error {
-//	var value [32]byte
-//	if err := cache.ReadValue(reader, &value, version); err != nil {
-//		return err
-//	}
-//	h.SetBytes(value[:])
-//	return nil
-//}
-
 func (h *Hash) Common() common.Hash {
 	return common.BytesToHash(h.Bytes())
 }

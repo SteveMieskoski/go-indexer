@@ -18,12 +18,6 @@ type DatabaseCoordinator interface {
 }
 
 type databaseCoordinator struct {
-	//BlockConsumer          *BlockConsumer
-	//ReceiptConsumer        *ReceiptConsumer
-	//TransactionConsumer    *TransactionConsumer
-	//BlobConsumer           *BlobConsumer
-	//AddressChannelConsumer *AddressChannelConsumer
-	//AddressConsumer        *AddressConsumer
 	consumers             map[string]TypeConsumer
 	consumeChannels       map[string]chan *sarama.ConsumerMessage
 	messageChannel        chan *sarama.ConsumerMessage
@@ -87,36 +81,10 @@ func (db *databaseCoordinator) ReceiptChannel() chan int64 {
 // TODO: I like this idea, but it appears like the channel is getting saturated from the consumer
 func (db *databaseCoordinator) ConsumeMessage(consumeChannels map[string]chan *sarama.ConsumerMessage) error {
 
-	//ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	//defer stop()
 	var counter int64 = 0
 	for message := range db.messageChannel {
 		counter++
 		go db.sendOrRetry(consumeChannels[message.Topic], message, counter, false, 1)
-		//go func() {
-		//	select {
-		//	case consumeChannels[message.Topic] <- message:
-		//		db.messageReceiptChannel <- counter
-		//	default:
-		//		fmt.Printf("Receiving channel not available for topic %s \n", message.Topic)
-		//		var holder *sarama.ConsumerMessage
-		//		holder := message
-		//		time.Sleep(10 * time.Millisecond)
-		//		db.messageReceiptChannel <- counter // don't get hung up if the consuming channel is blocking
-		//
-		//	}
-		//}()
-
-		//if message.Topic == types.TRANSACTION_TOPIC {
-		//	fmt.Printf("messageChannel %s \n", message.Topic)
-		//	consumeChannels[types.TRANSACTION_TOPIC] <- message
-		//} else {
-		//	go func() {
-		//		//fmt.Printf("messageChannel %s \n", message.Topic)
-		//		consumeChannels[message.Topic] <- message
-		//	}()
-		//}
-
 	}
 
 	return nil

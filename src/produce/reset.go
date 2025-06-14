@@ -46,8 +46,7 @@ func ResetKafka() {
 	if err != nil {
 		utils.Logger.Errorf("Producer: unable to delete topics %s\n", err)
 	}
-	//utils.Logger.Infof("waiting for Kafka to finish clearing")
-	//time.Sleep(10 * time.Second)
+
 	tpcs := make(map[string]*sarama.TopicDetail)
 	tpcs[types.TRANSACTION_TOPIC] = &sarama.TopicDetail{
 		NumPartitions:     2,
@@ -79,7 +78,6 @@ func ResetKafka() {
 		Timeout:      5 * time.Second,
 		ValidateOnly: false,
 	})
-	//broker.GetMetadata()
 	utils.Logger.Infof("waiting for Kafka to finish resetting")
 	time.Sleep(8 * time.Second)
 	// DeleteTopicsRequest

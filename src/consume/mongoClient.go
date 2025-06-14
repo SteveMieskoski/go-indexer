@@ -46,7 +46,6 @@ func ConnectMongoDb() (*mongo.Client, error) {
 }
 
 func GetClient(setting DatabaseSetting, idxConfig types.IdxConfigStruct) (*mongo.Client, error) {
-	//serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(setting.Url) /*.SetServerAPIOptions(serverAPI)*/
 	// Create a new client and connect to the server
 	client, err := mongo.Connect(context.TODO(), opts)
@@ -58,7 +57,6 @@ func GetClient(setting DatabaseSetting, idxConfig types.IdxConfigStruct) (*mongo
 		err := client.Database(setting.DbName).Collection(setting.Collection).Drop(context.TODO())
 		if err != nil {
 			panic(err)
-			//return nil, err
 		}
 	}
 	// Send a ping to confirm a successful connection

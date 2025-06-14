@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"flag"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v2"
@@ -20,7 +19,7 @@ var (
 func main() {
 	utils.InitializeLogger()
 	err := godotenv.Load("../.env")
-	//err := godotenv.Load("../.env-remote")
+
 	if err != nil {
 		utils.Logger.Fatalf("Error loading .env file")
 		err := godotenv.Load("../.env-example")

@@ -13,7 +13,6 @@ type RedisClient struct {
 }
 
 func NewClient(db int) *RedisClient {
-	//ctx := context.Background()
 
 	uri := os.Getenv("REDIS_URI")
 	rdb := redis.NewClient(&redis.Options{
@@ -44,13 +43,10 @@ func (r *RedisClient) Get(key string) (string, error) {
 	val, err := r.client.Get(ctx, key).Result()
 
 	if err == redis.Nil {
-		//fmt.Println("does not exist", key)
 		return val, err
 	} else if err != nil {
 		panic(err)
 	} else {
-		//println("Redis Get")
-		//fmt.Println(key, val)
 		return val, err
 	}
 }
@@ -101,7 +97,6 @@ func (r *RedisClient) Del(key string) (int64, error) {
 	val, err := r.client.Del(ctx, key).Result()
 
 	if err == redis.Nil {
-		//fmt.Println("does not exist", key)
 		return val, err
 	} else if err != nil {
 		panic(err)
@@ -110,26 +105,3 @@ func (r *RedisClient) Del(key string) (int64, error) {
 		return val, err
 	}
 }
-
-//
-//err := rdb.Set(ctx, "key", "value", 0).Err()
-//if err != nil {
-//panic(err)
-//}
-//
-//val, err := rdb.Get(ctx, "key").Result()
-//if err != nil {
-//panic(err)
-//}
-//fmt.Println("key", val)
-//
-//val2, err := rdb.Get(ctx, "key2").Result()
-//if err == redis.Nil {
-//fmt.Println("key2 does not exist")
-//} else if err != nil {
-//panic(err)
-//} else {
-//fmt.Println("key2", val2)
-//}
-//// Output: key value
-//// key2 does not exist

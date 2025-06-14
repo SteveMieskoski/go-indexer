@@ -50,14 +50,6 @@ func (app *receiptRepository) AddIndex() (string, error) {
 // TODO: that created the contract and is reported in the receipt
 func (app *receiptRepository) Add(appDoc types.MongoReceipt, ctx context.Context) (string, error) {
 
-	//if !app.indicesExist {
-	//	_, err := app.AddIndex()
-	//	if err != nil {
-	//
-	//		return "", err
-	//	}
-	//	app.indicesExist = true
-	//}
 	collection := app.client.Database(app.config.DbName).Collection(app.config.Collection)
 
 	insertResult, err := collection.InsertOne(ctx, appDoc)

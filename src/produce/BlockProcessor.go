@@ -189,7 +189,6 @@ func (r *BlockProcessor) processAddressesInBlock(ctx context.Context, addressesT
 			if err2 != nil {
 				txCount = 0
 			}
-			//fmt.Printf("%v -> %d @ %v \n", addressToLookUp, balance, blockNumber)
 
 			CollectedAddress := types.AddressBalance{
 				Address:  addr,

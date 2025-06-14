@@ -16,8 +16,6 @@ type AddressRepository interface {
 	AddAddressDetail(appDoc types.Address) (string, error)
 	AddContractAddress(appDoc types.Address) (string, error)
 	AddAddressOnly(appDoc types.Address) (string, error)
-	//List(count int, ctx context.Context) ([]*types.Address, error)
-	//GetById(oId string, ctx context.Context) (*types.Address, error)
 	Update(appDoc types.Address) error
 	Delete(oId string) (int64, error)
 }
